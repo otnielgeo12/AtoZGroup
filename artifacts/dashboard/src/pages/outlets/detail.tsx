@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -137,26 +137,24 @@ export default function OutletDetailPage() {
   });
 
   // Effect to populate form when outlet data loads
-  import("react").then((React) => {
-    React.useEffect(() => {
-      if (outlet) {
-        outletForm.reset({
-          name: outlet.name,
-          slug: outlet.slug,
-          tagline: outlet.tagline || "",
-          description: outlet.description || "",
-          address: outlet.address || "",
-          phone: outlet.phone || "",
-          hours: outlet.hours || "",
-          cuisine: outlet.cuisine || "",
-          accentColor: outlet.accentColor || "",
-          coverImagePath: outlet.coverImagePath || "",
-          cardImagePath: outlet.cardImagePath || "",
-          sortOrder: outlet.sortOrder,
-        });
-      }
-    }, [outlet, outletForm]);
-  });
+  useEffect(() => {
+    if (outlet) {
+      outletForm.reset({
+        name: outlet.name,
+        slug: outlet.slug,
+        tagline: outlet.tagline || "",
+        description: outlet.description || "",
+        address: outlet.address || "",
+        phone: outlet.phone || "",
+        hours: outlet.hours || "",
+        cuisine: outlet.cuisine || "",
+        accentColor: outlet.accentColor || "",
+        coverImagePath: outlet.coverImagePath || "",
+        cardImagePath: outlet.cardImagePath || "",
+        sortOrder: outlet.sortOrder,
+      });
+    }
+  }, [outlet, outletForm]);
 
   const onOutletSubmit = (data: OutletFormValues) => {
     updateOutletMutation.mutate({ id, data });

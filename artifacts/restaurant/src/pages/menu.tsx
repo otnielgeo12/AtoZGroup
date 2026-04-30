@@ -74,12 +74,27 @@ function MenuCard({ outlet, isActive, onClick, onClose }: { outlet: any, isActiv
                   <h5 className="text-xs font-bold tracking-[0.2em] uppercase text-zinc-500 mb-4 text-center">{category}</h5>
                   <div className="space-y-4">
                     {menuItems.filter(i => i.category === category).map((item: any) => (
-                      <div key={item.id} className="flex justify-between items-baseline gap-4">
-                        <div className="flex-1">
-                          <span className="text-sm font-medium text-zinc-900">{item.name}</span>
-                          {item.description && <p className="text-[11px] text-zinc-500 leading-tight mt-1">{item.description}</p>}
+                      <div key={item.id} className="flex gap-3 items-start">
+                        {item.imagePath ? (
+                          <img
+                            src={getImageUrl(item.imagePath)}
+                            alt={item.name}
+                            className="w-14 h-14 rounded object-cover shrink-0 border border-zinc-200"
+                          />
+                        ) : (
+                          <div className="w-14 h-14 rounded bg-zinc-100 border border-zinc-200 shrink-0 flex items-center justify-center">
+                            <span className="text-[9px] tracking-widest uppercase text-zinc-400">Dish</span>
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-baseline gap-2">
+                            <span className="text-sm font-medium text-zinc-900 truncate">{item.name}</span>
+                            <span className="text-sm font-serif text-zinc-700 shrink-0">{item.price}</span>
+                          </div>
+                          {item.description && (
+                            <p className="text-[11px] text-zinc-500 leading-tight mt-1">{item.description}</p>
+                          )}
                         </div>
-                        <span className="text-sm font-serif text-zinc-700">{item.price}</span>
                       </div>
                     ))}
                   </div>
