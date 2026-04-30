@@ -52,22 +52,25 @@ function MenuCard({ outlet, isActive, onClick, onClose }: { outlet: any, isActiv
         </div>
 
         {/* BACK OF CARD (MENU) */}
-        <div className="menu-card-back bg-[#f8f5f0] text-zinc-900 border border-zinc-200 p-8 overflow-y-auto hide-scrollbar shadow-inner relative flex flex-col">
+        <div className={`menu-card-back bg-[#f8f5f0] text-zinc-900 border border-zinc-200 overflow-y-auto hide-scrollbar shadow-inner relative flex flex-col ${isActive ? 'p-8 md:p-12' : 'p-8'}`}>
           {isActive && (
             <button 
               onClick={(e) => { e.stopPropagation(); onClose(); }}
-              className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-zinc-900 bg-white/80 rounded-full backdrop-blur-sm z-50 transition-colors"
+              className="absolute top-4 right-4 p-2 text-zinc-500 hover:text-zinc-900 bg-white/90 rounded-full shadow-sm z-50 transition-colors"
             >
-              <X size={20} />
+              <X size={22} />
             </button>
           )}
 
-          <div className="text-center mb-8 pt-4">
-            <h4 className="text-2xl font-serif text-zinc-900">{outlet.name}</h4>
-            <div className="w-8 h-px bg-zinc-300 mx-auto mt-4" />
+          <div className={`text-center pt-4 ${isActive ? 'mb-12' : 'mb-8'}`}>
+            <h4 className={`font-serif text-zinc-900 ${isActive ? 'text-4xl md:text-5xl' : 'text-2xl'}`}>{outlet.name}</h4>
+            {isActive && outlet.tagline && (
+              <p className="text-sm tracking-[0.2em] uppercase text-zinc-500 mt-3">{outlet.tagline}</p>
+            )}
+            <div className={`h-px bg-zinc-300 mx-auto mt-5 ${isActive ? 'w-16' : 'w-8'}`} />
           </div>
 
-          <div className="flex-1 flex flex-col gap-8 pb-10">
+          <div className={`flex-1 flex flex-col pb-10 ${isActive ? 'gap-12 max-w-3xl mx-auto w-full' : 'gap-8'}`}>
             {isLoading ? (
               <div className="space-y-6">
                 {[1,2,3].map(i => <Skeleton key={i} className="h-12 w-full bg-zinc-200" />)}
@@ -75,32 +78,39 @@ function MenuCard({ outlet, isActive, onClick, onClose }: { outlet: any, isActiv
             ) : menuItems && menuItems.length > 0 ? (
               categories.map((category: any) => (
                 <div key={category}>
-                  <h5 className="text-xs font-bold tracking-[0.2em] uppercase text-zinc-500 mb-4 text-center">{category}</h5>
-                  <div className="space-y-4">
-                    {menuItems.filter(i => i.category === category).map((item: any) => (
-                      <div key={item.id} className="flex gap-3 items-start">
-                        {item.imagePath ? (
-                          <img
-                            src={getImageUrl(item.imagePath)}
-                            alt={item.name}
-                            className="w-14 h-14 rounded object-cover shrink-0 border border-zinc-200"
-                          />
-                        ) : (
-                          <div className="w-14 h-14 rounded bg-zinc-100 border border-zinc-200 shrink-0 flex items-center justify-center">
-                            <span className="text-[9px] tracking-widest uppercase text-zinc-400">Dish</span>
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-baseline gap-2">
-                            <span className="text-sm font-medium text-zinc-900 truncate">{item.name}</span>
-                            <span className="text-sm font-serif text-zinc-700 shrink-0">{item.price}</span>
-                          </div>
-                          {item.description && (
-                            <p className="text-[11px] text-zinc-500 leading-tight mt-1">{item.description}</p>
+                  <h5 className={`font-bold tracking-[0.2em] uppercase text-zinc-500 text-center ${isActive ? 'text-sm mb-6' : 'text-xs mb-4'}`}>{category}</h5>
+                  <div className={isActive ? 'space-y-6' : 'space-y-4'}>
+                    {menuItems.filter(i => i.category === category).map((item: any) => {
+                      const imgSize = isActive ? 'w-24 h-24 md:w-28 md:h-28' : 'w-14 h-14';
+                      const nameSize = isActive ? 'text-lg md:text-xl' : 'text-sm';
+                      const priceSize = isActive ? 'text-lg md:text-xl' : 'text-sm';
+                      const descSize = isActive ? 'text-sm md:text-base mt-2' : 'text-[11px] mt-1';
+                      const placeholderText = isActive ? 'text-[11px]' : 'text-[9px]';
+                      return (
+                        <div key={item.id} className={`flex items-start ${isActive ? 'gap-5' : 'gap-3'}`}>
+                          {item.imagePath ? (
+                            <img
+                              src={getImageUrl(item.imagePath)}
+                              alt={item.name}
+                              className={`${imgSize} rounded object-cover shrink-0 border border-zinc-200`}
+                            />
+                          ) : (
+                            <div className={`${imgSize} rounded bg-zinc-100 border border-zinc-200 shrink-0 flex items-center justify-center`}>
+                              <span className={`${placeholderText} tracking-widest uppercase text-zinc-400`}>Dish</span>
+                            </div>
                           )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-baseline gap-3">
+                              <span className={`${nameSize} font-medium text-zinc-900`}>{item.name}</span>
+                              <span className={`${priceSize} font-serif text-zinc-700 shrink-0`}>{item.price}</span>
+                            </div>
+                            {item.description && (
+                              <p className={`${descSize} text-zinc-500 leading-snug`}>{item.description}</p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))
@@ -136,7 +146,7 @@ export function Menu() {
 
         {/* The overlay that softly dims the page when a card is active */}
         <div 
-          className={`fixed inset-0 bg-black/40 backdrop-blur-md z-40 transition-opacity duration-500 ${activeOutletId !== null ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+          className={`fixed inset-0 bg-black/55 z-40 transition-opacity duration-500 ${activeOutletId !== null ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
           onClick={() => setActiveOutletId(null)}
         />
 
