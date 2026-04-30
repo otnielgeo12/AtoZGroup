@@ -22,7 +22,11 @@ function MenuCard({ outlet, isActive, onClick, onClose }: { outlet: any, isActiv
 
   return (
     <div 
-      className={`relative w-full max-w-sm md:max-w-md aspect-[3/4] mx-auto cursor-pointer menu-card-container group ${isActive ? 'is-flipped z-50' : 'z-10 hover:-translate-y-2'} transition-all duration-500`}
+      className={`relative mx-auto cursor-pointer menu-card-container group transition-all duration-500 ${
+        isActive
+          ? 'is-flipped z-50 w-full h-full'
+          : 'z-10 hover:-translate-y-2 w-full max-w-sm md:max-w-md aspect-[3/4]'
+      }`}
       onClick={!isActive ? onClick : undefined}
     >
       <div className="menu-card-inner w-full h-full relative shadow-2xl rounded-sm">
@@ -130,9 +134,9 @@ export function Menu() {
           <p className="text-white/60 text-lg font-light">Select a venue to explore its culinary offerings.</p>
         </div>
 
-        {/* The overlay that darkens other cards when one is active */}
+        {/* The overlay that softly dims the page when a card is active */}
         <div 
-          className={`fixed inset-0 bg-black/80 z-40 transition-opacity duration-500 ${activeOutletId !== null ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+          className={`fixed inset-0 bg-black/40 backdrop-blur-md z-40 transition-opacity duration-500 ${activeOutletId !== null ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
           onClick={() => setActiveOutletId(null)}
         />
 
@@ -146,7 +150,7 @@ export function Menu() {
                 initial={{ opacity: 0, y: 50 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: i * 0.1 }}
-                className={activeOutletId === outlet.id ? 'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md px-6 pointer-events-auto' : ''}
+                className={activeOutletId === outlet.id ? 'fixed inset-4 sm:inset-8 md:inset-12 lg:inset-16 z-50 mx-auto max-w-5xl pointer-events-auto' : ''}
               >
                 <MenuCard 
                   outlet={outlet} 
