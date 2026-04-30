@@ -56,7 +56,7 @@ function MenuCard({ outlet, isActive, onClick, onClose }: { outlet: any, isActiv
           {isActive && (
             <button 
               onClick={(e) => { e.stopPropagation(); onClose(); }}
-              className="absolute top-4 right-4 p-2 text-zinc-500 hover:text-zinc-900 bg-white/90 rounded-full shadow-sm z-50 transition-colors"
+              className="absolute top-4 right-4 p-2 text-zinc-500 hover:text-zinc-900 bg-white rounded-full z-50 transition-colors"
             >
               <X size={22} />
             </button>
