@@ -1,0 +1,62 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "Rnt_zZEamI-vNeJArxxf5"
+uri = "file://artifacts/restaurant/src/assets/banner-1.png"
+type = "image"
+title = "Cinematic fine dining atmosphere"
+
+[[generated]]
+id = "k_EnBmXDrVDqE4lipL-lu"
+uri = "file://artifacts/restaurant/src/assets/banner-2.png"
+type = "image"
+title = "Pouring red wine into glass"
+
+[[generated]]
+id = "yp8QqEEYmO5HT9f4Njk_o"
+uri = "file://artifacts/restaurant/src/assets/banner-3.png"
+type = "image"
+title = "Chef plating fine dining dish"
+
+[[generated]]
+id = "kGM52u9ClO6uN5TMS0bi8"
+uri = "file://artifacts/restaurant/src/assets/outlet-atoz.png"
+type = "image"
+title = "Refined wine and small plates"
+
+[[generated]]
+id = "RIJ3Nny7TxvYKMaLZTfBi"
+uri = "file://artifacts/restaurant/src/assets/outlet-bosa.png"
+type = "image"
+title = "Modern South Asian fine dining"
+
+[[generated]]
+id = "5WYsrkMK_zwk1OIGTjH-w"
+uri = "file://artifacts/restaurant/src/assets/outlet-bodega.png"
+type = "image"
+title = "Laid-back all-day cafe"
+
+[[generated]]
+id = "mVseUmW-2S83hJZDh8LXn"
+uri = "file://artifacts/restaurant/src/assets/outlet-lakers.png"
+type = "image"
+title = "Lakeside seafood"
+
+[[generated]]
+id = "Y-sowx-Q3ELfYd9oX7udh"
+uri = "file://artifacts/restaurant/src/assets/outlet-redhare.png"
+type = "image"
+title = "Cocktail-forward gastropub"
+
+[[generated]]
+id = "pzllGOixOuOJ6zah_eAe5"
+uri = "file://artifacts/restaurant/src/assets/outlet-district5.png"
+type = "image"
+title = "Industrial-chic fusion"
+
+[[generated]]
+id = "GkUqUfvT0OuT3SzFftCW0"
+uri = "file://artifacts/restaurant/src/assets/outlet-infinity.png"
+type = "image"
+title = "Rooftop fine dining"

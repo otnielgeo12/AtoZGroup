@@ -3,20 +3,31 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Restaurant group API for landing site and admin dashboard
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: storage
+    description: Object storage uploads
+  - name: banners
+    description: Hero banner slides
+  - name: outlets
+    description: Restaurant outlets
+  - name: menu
+    description: Outlet menu categories and items
+  - name: gallery
+    description: Site-wide photo gallery
+  - name: site
+    description: Site-wide settings
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +35,419 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [storage]
+      summary: Request a presigned upload URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestUploadUrlBody"
+      responses:
+        "200":
+          description: Presigned URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequestUploadUrlResponse"
+
+  /banners:
+    get:
+      operationId: listBanners
+      tags: [banners]
+      summary: List banners (landing uses only active ones)
+      parameters:
+        - in: query
+          name: activeOnly
+          schema:
+            type: boolean
+          required: false
+      responses:
+        "200":
+          description: Banners
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Banner"
+    post:
+      operationId: createBanner
+      tags: [banners]
+      summary: Create a banner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBannerBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Banner"
+  /banners/{id}:
+    get:
+      operationId: getBanner
+      tags: [banners]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Banner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Banner"
+    patch:
+      operationId: updateBanner
+      tags: [banners]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBannerBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Banner"
+    delete:
+      operationId: deleteBanner
+      tags: [banners]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /outlets:
+    get:
+      operationId: listOutlets
+      tags: [outlets]
+      summary: List all outlets
+      responses:
+        "200":
+          description: Outlets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Outlet"
+    post:
+      operationId: createOutlet
+      tags: [outlets]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOutletBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Outlet"
+  /outlets/{id}:
+    get:
+      operationId: getOutlet
+      tags: [outlets]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Outlet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Outlet"
+    patch:
+      operationId: updateOutlet
+      tags: [outlets]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOutletBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Outlet"
+    delete:
+      operationId: deleteOutlet
+      tags: [outlets]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+  /outlets/by-slug/{slug}:
+    get:
+      operationId: getOutletBySlug
+      tags: [outlets]
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Outlet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Outlet"
+
+  /outlets/{outletId}/menu-items:
+    get:
+      operationId: listMenuItems
+      tags: [menu]
+      parameters:
+        - in: path
+          name: outletId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Menu items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MenuItem"
+    post:
+      operationId: createMenuItem
+      tags: [menu]
+      parameters:
+        - in: path
+          name: outletId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMenuItemBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MenuItem"
+  /menu-items/{id}:
+    get:
+      operationId: getMenuItem
+      tags: [menu]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Menu item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MenuItem"
+    patch:
+      operationId: updateMenuItem
+      tags: [menu]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMenuItemBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MenuItem"
+    delete:
+      operationId: deleteMenuItem
+      tags: [menu]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /gallery:
+    get:
+      operationId: listGalleryImages
+      tags: [gallery]
+      parameters:
+        - in: query
+          name: outletId
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Gallery images
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GalleryImage"
+    post:
+      operationId: createGalleryImage
+      tags: [gallery]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGalleryImageBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GalleryImage"
+  /gallery/{id}:
+    patch:
+      operationId: updateGalleryImage
+      tags: [gallery]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGalleryImageBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GalleryImage"
+    delete:
+      operationId: deleteGalleryImage
+      tags: [gallery]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /site-info:
+    get:
+      operationId: getSiteInfo
+      tags: [site]
+      responses:
+        "200":
+          description: Site info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SiteInfo"
+    patch:
+      operationId: updateSiteInfo
+      tags: [site]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSiteInfoBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SiteInfo"
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [site]
+      summary: Aggregate counts and recent activity for the dashboard home
+      responses:
+        "200":
+          description: Summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +455,336 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    RequestUploadUrlBody:
+      type: object
+      properties:
+        name:
+          type: string
+        size:
+          type: integer
+        contentType:
+          type: string
+      required: [name, size, contentType]
+    RequestUploadUrlResponse:
+      type: object
+      properties:
+        uploadURL:
+          type: string
+        objectPath:
+          type: string
+      required: [uploadURL, objectPath]
+
+    Banner:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: ["string", "null"]
+        subtitle:
+          type: ["string", "null"]
+        imagePath:
+          type: string
+        ctaLabel:
+          type: ["string", "null"]
+        ctaHref:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+        active:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, imagePath, sortOrder, active, createdAt, updatedAt]
+    CreateBannerBody:
+      type: object
+      properties:
+        title:
+          type: ["string", "null"]
+        subtitle:
+          type: ["string", "null"]
+        imagePath:
+          type: string
+        ctaLabel:
+          type: ["string", "null"]
+        ctaHref:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+        active:
+          type: boolean
+      required: [imagePath]
+    UpdateBannerBody:
+      type: object
+      properties:
+        title:
+          type: ["string", "null"]
+        subtitle:
+          type: ["string", "null"]
+        imagePath:
+          type: string
+        ctaLabel:
+          type: ["string", "null"]
+        ctaHref:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+        active:
+          type: boolean
+
+    Outlet:
+      type: object
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        name:
+          type: string
+        tagline:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        hours:
+          type: ["string", "null"]
+        cuisine:
+          type: ["string", "null"]
+        accentColor:
+          type: ["string", "null"]
+        coverImagePath:
+          type: ["string", "null"]
+        cardImagePath:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, slug, name, sortOrder, createdAt, updatedAt]
+    CreateOutletBody:
+      type: object
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        tagline:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        hours:
+          type: ["string", "null"]
+        cuisine:
+          type: ["string", "null"]
+        accentColor:
+          type: ["string", "null"]
+        coverImagePath:
+          type: ["string", "null"]
+        cardImagePath:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+      required: [slug, name]
+    UpdateOutletBody:
+      type: object
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        tagline:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        hours:
+          type: ["string", "null"]
+        cuisine:
+          type: ["string", "null"]
+        accentColor:
+          type: ["string", "null"]
+        coverImagePath:
+          type: ["string", "null"]
+        cardImagePath:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+
+    MenuItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        outletId:
+          type: integer
+        category:
+          type: string
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        price:
+          type: ["string", "null"]
+        imagePath:
+          type: ["string", "null"]
+        tags:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+        featured:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, outletId, category, name, sortOrder, featured, createdAt, updatedAt]
+    CreateMenuItemBody:
+      type: object
+      properties:
+        category:
+          type: string
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        price:
+          type: ["string", "null"]
+        imagePath:
+          type: ["string", "null"]
+        tags:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+        featured:
+          type: boolean
+      required: [category, name]
+    UpdateMenuItemBody:
+      type: object
+      properties:
+        category:
+          type: string
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        price:
+          type: ["string", "null"]
+        imagePath:
+          type: ["string", "null"]
+        tags:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+        featured:
+          type: boolean
+
+    GalleryImage:
+      type: object
+      properties:
+        id:
+          type: integer
+        outletId:
+          type: ["integer", "null"]
+        imagePath:
+          type: string
+        caption:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, imagePath, sortOrder, createdAt, updatedAt]
+    CreateGalleryImageBody:
+      type: object
+      properties:
+        outletId:
+          type: ["integer", "null"]
+        imagePath:
+          type: string
+        caption:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+      required: [imagePath]
+    UpdateGalleryImageBody:
+      type: object
+      properties:
+        outletId:
+          type: ["integer", "null"]
+        imagePath:
+          type: string
+        caption:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+
+    SiteInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+        brandName:
+          type: string
+        tagline:
+          type: ["string", "null"]
+        about:
+          type: ["string", "null"]
+        contactEmail:
+          type: ["string", "null"]
+        contactPhone:
+          type: ["string", "null"]
+        instagramUrl:
+          type: ["string", "null"]
+        updatedAt:
+          type: string
+      required: [id, brandName, updatedAt]
+    UpdateSiteInfoBody:
+      type: object
+      properties:
+        brandName:
+          type: string
+        tagline:
+          type: ["string", "null"]
+        about:
+          type: ["string", "null"]
+        contactEmail:
+          type: ["string", "null"]
+        contactPhone:
+          type: ["string", "null"]
+        instagramUrl:
+          type: ["string", "null"]
+
+    DashboardSummary:
+      type: object
+      properties:
+        outletCount:
+          type: integer
+        menuItemCount:
+          type: integer
+        bannerCount:
+          type: integer
+        galleryCount:
+          type: integer
+        recentMenuItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/MenuItem"
+      required: [outletCount, menuItemCount, bannerCount, galleryCount, recentMenuItems]
