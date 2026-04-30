@@ -8,6 +8,7 @@ import { Footer } from "@/components/layout/Footer";
 import { Landing } from "@/pages/landing";
 import { OutletDetail } from "@/pages/outlet-detail";
 import { Menu } from "@/pages/menu";
+import { MenuDetail } from "@/pages/menu-detail";
 import { Gallery } from "@/pages/gallery";
 
 const queryClient = new QueryClient();
@@ -21,6 +22,7 @@ function Router() {
           <Route path="/" component={Landing} />
           <Route path="/outlets/:slug" component={OutletDetail} />
           <Route path="/menu" component={Menu} />
+          <Route path="/menu/:slug" component={MenuDetail} />
           <Route path="/gallery" component={Gallery} />
           <Route component={NotFound} />
         </Switch>
