@@ -144,13 +144,12 @@ export function Menu() {
           <p className="text-white/60 text-lg font-light">Select a venue to explore its culinary offerings.</p>
         </div>
 
-        {/* The overlay that softly dims the page when a card is active */}
-        <div 
-          className={`fixed inset-0 bg-black/55 z-40 transition-opacity duration-500 ${activeOutletId !== null ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-          onClick={() => setActiveOutletId(null)}
-        />
-
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-16 perspective-1000 relative z-30">
+          {/* Overlay lives inside the grid so it shares the same stacking context as the active card */}
+          <div 
+            className={`fixed inset-0 bg-black/55 z-40 transition-opacity duration-500 ${activeOutletId !== null ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+            onClick={() => setActiveOutletId(null)}
+          />
           {isLoading ? (
             [1,2,3,4,5,6].map(i => <Skeleton key={i} className="aspect-[3/4] w-full max-w-sm mx-auto bg-zinc-900 rounded-sm" />)
           ) : (
