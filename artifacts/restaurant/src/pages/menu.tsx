@@ -29,7 +29,7 @@ function MenuCard({ outlet, isActive, onClick, onClose }: { outlet: any, isActiv
       }`}
       onClick={!isActive ? onClick : undefined}
     >
-      <div className="menu-card-inner w-full h-full relative shadow-2xl rounded-sm">
+      <div className={`menu-card-inner w-full h-full relative rounded-sm ${isActive ? '' : 'shadow-2xl'}`}>
         
         {/* FRONT OF CARD */}
         <div className="menu-card-front bg-zinc-900 overflow-hidden border border-white/10 flex flex-col items-center justify-center p-8 relative">
@@ -52,7 +52,7 @@ function MenuCard({ outlet, isActive, onClick, onClose }: { outlet: any, isActiv
         </div>
 
         {/* BACK OF CARD (MENU) */}
-        <div className={`menu-card-back bg-[#f8f5f0] text-zinc-900 border border-zinc-200 overflow-y-auto hide-scrollbar shadow-inner relative flex flex-col ${isActive ? 'p-8 md:p-12' : 'p-8'}`}>
+        <div className={`menu-card-back text-zinc-900 overflow-y-auto hide-scrollbar relative flex flex-col ${isActive ? 'bg-white p-8 md:p-12 border-0 shadow-none' : 'bg-[#f8f5f0] p-8 border border-zinc-200 shadow-inner'}`}>
           {isActive && (
             <button 
               onClick={(e) => { e.stopPropagation(); onClose(); }}
