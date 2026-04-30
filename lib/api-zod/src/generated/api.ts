@@ -400,6 +400,98 @@ export const UpdateSiteInfoResponse = zod.object({
   updatedAt: zod.string(),
 });
 
+export const ListPromotionsParams = zod.object({
+  outletId: zod.coerce.number(),
+});
+
+export const ListPromotionsQueryParams = zod.object({
+  activeOnly: zod.coerce.boolean().optional(),
+});
+
+export const ListPromotionsResponseItem = zod.object({
+  id: zod.number(),
+  outletId: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  imagePath: zod.string().nullish(),
+  ctaLabel: zod.string().nullish(),
+  ctaHref: zod.string().nullish(),
+  badge: zod.string().nullish(),
+  sortOrder: zod.number(),
+  active: zod.boolean(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+export const ListPromotionsResponse = zod.array(ListPromotionsResponseItem);
+
+export const CreatePromotionParams = zod.object({
+  outletId: zod.coerce.number(),
+});
+
+export const CreatePromotionBody = zod.object({
+  title: zod.string(),
+  description: zod.string().nullish(),
+  imagePath: zod.string().nullish(),
+  ctaLabel: zod.string().nullish(),
+  ctaHref: zod.string().nullish(),
+  badge: zod.string().nullish(),
+  sortOrder: zod.number().optional(),
+  active: zod.boolean().optional(),
+});
+
+export const GetPromotionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetPromotionResponse = zod.object({
+  id: zod.number(),
+  outletId: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  imagePath: zod.string().nullish(),
+  ctaLabel: zod.string().nullish(),
+  ctaHref: zod.string().nullish(),
+  badge: zod.string().nullish(),
+  sortOrder: zod.number(),
+  active: zod.boolean(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+export const UpdatePromotionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdatePromotionBody = zod.object({
+  title: zod.string().optional(),
+  description: zod.string().nullish(),
+  imagePath: zod.string().nullish(),
+  ctaLabel: zod.string().nullish(),
+  ctaHref: zod.string().nullish(),
+  badge: zod.string().nullish(),
+  sortOrder: zod.number().optional(),
+  active: zod.boolean().optional(),
+});
+
+export const UpdatePromotionResponse = zod.object({
+  id: zod.number(),
+  outletId: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  imagePath: zod.string().nullish(),
+  ctaLabel: zod.string().nullish(),
+  ctaHref: zod.string().nullish(),
+  badge: zod.string().nullish(),
+  sortOrder: zod.number(),
+  active: zod.boolean(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+export const DeletePromotionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
 /**
  * @summary Aggregate counts and recent activity for the dashboard home
  */

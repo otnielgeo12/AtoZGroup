@@ -153,32 +153,32 @@ export function MenuDetail() {
                             <img
                               src={getImageUrl(item.imagePath)}
                               alt={item.name}
-                              className="w-20 h-20 rounded object-cover shrink-0 border border-white/10"
+                              className="w-28 h-28 md:w-32 md:h-32 rounded object-cover shrink-0 border border-white/10"
                             />
                           ) : (
-                            <div className="w-20 h-20 rounded bg-zinc-900 border border-white/10 shrink-0 flex items-center justify-center">
-                              <span className="text-[9px] tracking-widest uppercase text-white/30">
+                            <div className="w-28 h-28 md:w-32 md:h-32 rounded bg-zinc-900 border border-white/10 shrink-0 flex items-center justify-center">
+                              <span className="text-[10px] tracking-widest uppercase text-white/30">
                                 Dish
                               </span>
                             </div>
                           )}
 
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-baseline justify-between gap-3 mb-1">
-                              <h3 className="text-base font-medium text-white leading-tight">
+                            <div className="flex items-baseline justify-between gap-3 mb-1.5">
+                              <h3 className="text-lg md:text-xl font-medium text-white leading-tight">
                                 {item.name}
                               </h3>
-                              <span className="text-base font-serif text-primary shrink-0">
+                              <span className="text-lg md:text-xl font-serif text-primary shrink-0">
                                 {item.price}
                               </span>
                             </div>
                             {item.description && (
-                              <p className="text-sm text-white/55 leading-snug">
+                              <p className="text-base text-white/60 leading-relaxed">
                                 {item.description}
                               </p>
                             )}
                             {item.featured && (
-                              <span className="inline-block mt-2 text-[10px] tracking-[0.2em] uppercase text-primary border border-primary/40 px-2 py-0.5 rounded-full">
+                              <span className="inline-block mt-3 text-[11px] tracking-[0.2em] uppercase text-primary border border-primary/40 px-2.5 py-0.5 rounded-full">
                                 Chef's Pick
                               </span>
                             )}

@@ -4,8 +4,8 @@ import { ArrowLeft, ArrowRight, Clock, MapPin, Phone, Utensils } from "lucide-re
 import { 
   useGetOutletBySlug, 
   getGetOutletBySlugQueryKey,
-  useListMenuItems,
-  getListMenuItemsQueryKey
+  useListPromotions,
+  getListPromotionsQueryKey
 } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fallbackOutlets, getImageUrl } from "@/lib/assets";
@@ -21,9 +21,16 @@ export function OutletDetail() {
   const fallbackOutlet = fallbackOutlets.find(o => o.slug === slug);
   const outlet = (!outletLoading && apiOutlet) ? apiOutlet : fallbackOutlet;
 
-  const { data: menuItems, isLoading: menuLoading } = useListMenuItems(outlet?.id || -1, {
-    query: { enabled: !!outlet?.id, queryKey: getListMenuItemsQueryKey(outlet?.id || -1) }
-  });
+  const { data: promotions, isLoading: promosLoading } = useListPromotions(
+    outlet?.id || -1,
+    { activeOnly: true },
+    {
+      query: {
+        enabled: !!outlet?.id,
+        queryKey: getListPromotionsQueryKey(outlet?.id || -1, { activeOnly: true }),
+      },
+    }
+  );
 
   if (outletLoading) {
     return (
@@ -49,9 +56,6 @@ export function OutletDetail() {
       </div>
     );
   }
-
-  // Group menu items by category
-  const categories = menuItems ? Array.from(new Set(menuItems.map(item => item.category))) : [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -136,52 +140,89 @@ export function OutletDetail() {
         </div>
       </section>
 
-      {/* Menu Highlight */}
+      {/* Promotions */}
       <section className="py-20 px-6 bg-zinc-950 text-white">
-        <div className="container mx-auto max-w-4xl">
+        <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
-            <Utensils className="mx-auto text-primary mb-4" size={32} />
-            <h2 className="text-4xl font-serif mb-4">Sample Menu</h2>
-            <p className="text-white/60 tracking-wide uppercase text-sm">A glimpse of our offerings</p>
+            <p className="text-xs font-medium tracking-[0.3em] uppercase text-primary mb-4">What's On</p>
+            <h2 className="text-4xl md:text-5xl font-serif mb-4">Current Promotions</h2>
+            <p className="text-white/60 tracking-wide text-sm max-w-xl mx-auto">
+              Limited-time offers, special events, and exclusive experiences at {outlet.name}.
+            </p>
           </div>
 
-          {menuLoading ? (
-            <div className="space-y-6">
-              {[1,2,3].map(i => <Skeleton key={i} className="h-20 w-full bg-zinc-900" />)}
+          {promosLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {[1, 2].map((i) => (
+                <Skeleton key={i} className="h-72 w-full bg-zinc-900" />
+              ))}
             </div>
-          ) : menuItems && menuItems.length > 0 ? (
-            <div className="space-y-16">
-              {categories.map(category => (
-                <div key={category}>
-                  <h3 className="text-2xl font-serif text-primary border-b border-white/10 pb-4 mb-8">{category}</h3>
-                  <div className="space-y-8">
-                    {menuItems.filter(item => item.category === category).map(item => (
-                      <div key={item.id} className="flex justify-between items-start gap-8 group">
-                        <div className="flex-1">
-                          <div className="flex items-baseline justify-between mb-2">
-                            <h4 className="text-lg font-medium text-white group-hover:text-primary transition-colors">{item.name}</h4>
-                            <div className="border-b border-dotted border-white/20 flex-1 mx-4 opacity-30"></div>
-                            <span className="text-white/90 font-serif">{item.price}</span>
-                          </div>
-                          {item.description && (
-                            <p className="text-white/50 text-sm leading-relaxed">{item.description}</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+          ) : promotions && promotions.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {promotions.map((promo, idx) => (
+                <motion.div
+                  key={promo.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: idx * 0.08 }}
+                  className="group relative overflow-hidden border border-white/10 bg-zinc-900/40 rounded-sm flex flex-col"
+                >
+                  {promo.imagePath && (
+                    <div className="relative h-56 overflow-hidden">
+                      <img
+                        src={getImageUrl(promo.imagePath)}
+                        alt={promo.title}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 to-transparent" />
+                      {promo.badge && (
+                        <span className="absolute top-4 left-4 inline-block bg-primary text-primary-foreground text-[10px] font-medium tracking-[0.2em] uppercase px-3 py-1.5 rounded-sm">
+                          {promo.badge}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <div className="p-6 md:p-8 flex-1 flex flex-col">
+                    {!promo.imagePath && promo.badge && (
+                      <span className="inline-block self-start bg-primary text-primary-foreground text-[10px] font-medium tracking-[0.2em] uppercase px-3 py-1.5 rounded-sm mb-4">
+                        {promo.badge}
+                      </span>
+                    )}
+                    <h3 className="text-2xl font-serif text-white mb-3 leading-tight">{promo.title}</h3>
+                    {promo.description && (
+                      <p className="text-white/60 text-sm leading-relaxed mb-6 flex-1">
+                        {promo.description}
+                      </p>
+                    )}
+                    {promo.ctaLabel && promo.ctaHref && (
+                      <a
+                        href={promo.ctaHref}
+                        target={promo.ctaHref.startsWith("http") ? "_blank" : undefined}
+                        rel={promo.ctaHref.startsWith("http") ? "noopener noreferrer" : undefined}
+                        className="inline-flex items-center gap-2 text-primary hover:text-white transition-colors uppercase tracking-widest text-xs font-medium self-start"
+                      >
+                        {promo.ctaLabel}
+                        <ArrowRight size={14} />
+                      </a>
+                    )}
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-10 border border-white/10 rounded-sm">
-              <p className="text-white/50 italic font-serif">Menu currently being updated. Please check back soon.</p>
+            <div className="text-center py-16 border border-white/10 rounded-sm">
+              <p className="text-white/50 italic font-serif mb-2">No active promotions at this time.</p>
+              <p className="text-white/40 text-xs tracking-wide uppercase">Check back soon for upcoming offers</p>
             </div>
           )}
 
-          <div className="text-center mt-20">
-            <Link href="/menu" className="inline-flex items-center gap-2 text-primary hover:text-white transition-colors uppercase tracking-widest text-sm">
-              View all menus <ArrowRight size={16} />
+          <div className="text-center mt-16">
+            <Link
+              href={`/menu/${outlet.slug}`}
+              className="inline-flex items-center gap-2 text-primary hover:text-white transition-colors uppercase tracking-widest text-sm"
+            >
+              View full menu <ArrowRight size={16} />
             </Link>
           </div>
         </div>

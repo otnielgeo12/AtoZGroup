@@ -435,6 +435,104 @@ paths:
               schema:
                 $ref: "#/components/schemas/SiteInfo"
 
+  /outlets/{outletId}/promotions:
+    get:
+      operationId: listPromotions
+      tags: [promotions]
+      parameters:
+        - in: path
+          name: outletId
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: activeOnly
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Promotions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Promotion"
+    post:
+      operationId: createPromotion
+      tags: [promotions]
+      parameters:
+        - in: path
+          name: outletId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePromotionBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Promotion"
+  /promotions/{id}:
+    get:
+      operationId: getPromotion
+      tags: [promotions]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Promotion
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Promotion"
+    patch:
+      operationId: updatePromotion
+      tags: [promotions]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePromotionBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Promotion"
+    delete:
+      operationId: deletePromotion
+      tags: [promotions]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
   /dashboard/summary:
     get:
       operationId: getDashboardSummary
@@ -692,6 +790,74 @@ components:
         sortOrder:
           type: integer
         featured:
+          type: boolean
+
+    Promotion:
+      type: object
+      properties:
+        id:
+          type: integer
+        outletId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        imagePath:
+          type: ["string", "null"]
+        ctaLabel:
+          type: ["string", "null"]
+        ctaHref:
+          type: ["string", "null"]
+        badge:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+        active:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, outletId, title, sortOrder, active, createdAt, updatedAt]
+    CreatePromotionBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        imagePath:
+          type: ["string", "null"]
+        ctaLabel:
+          type: ["string", "null"]
+        ctaHref:
+          type: ["string", "null"]
+        badge:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+        active:
+          type: boolean
+      required: [title]
+    UpdatePromotionBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        imagePath:
+          type: ["string", "null"]
+        ctaLabel:
+          type: ["string", "null"]
+        ctaHref:
+          type: ["string", "null"]
+        badge:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+        active:
           type: boolean
 
     GalleryImage:

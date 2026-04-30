@@ -10,11 +10,16 @@ import {
   useCreateMenuItem,
   useUpdateMenuItem,
   useDeleteMenuItem,
+  useListPromotions,
+  useCreatePromotion,
+  useUpdatePromotion,
+  useDeletePromotion,
   getGetOutletQueryKey,
-  getListMenuItemsQueryKey
+  getListMenuItemsQueryKey,
+  getListPromotionsQueryKey
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, MapPin, Phone, Clock, Utensils, Plus, Pencil, Trash2, GripVertical, Store } from "lucide-react";
+import { ArrowLeft, MapPin, Phone, Clock, Utensils, Plus, Pencil, Trash2, GripVertical, Store, Megaphone, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -84,6 +89,19 @@ const menuItemSchema = z.object({
 });
 
 type MenuItemFormValues = z.infer<typeof menuItemSchema>;
+
+const promotionSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  description: z.string().nullable().optional(),
+  imagePath: z.string().nullable().optional(),
+  ctaLabel: z.string().nullable().optional(),
+  ctaHref: z.string().nullable().optional(),
+  badge: z.string().nullable().optional(),
+  sortOrder: z.coerce.number().int().default(0),
+  active: z.boolean().default(true),
+});
+
+type PromotionFormValues = z.infer<typeof promotionSchema>;
 
 export default function OutletDetailPage() {
   const params = useParams<{ id: string }>();
@@ -260,6 +278,114 @@ export default function OutletDetailPage() {
     }
   };
 
+  // Promotions state
+  const promotionsQueryKey = getListPromotionsQueryKey(id);
+  const { data: promotions, isLoading: isPromosLoading } = useListPromotions(id, undefined, {
+    query: {
+      enabled: !!id && !isNaN(id),
+      queryKey: promotionsQueryKey,
+    },
+  });
+
+  const [isCreatePromoOpen, setIsCreatePromoOpen] = useState(false);
+  const [editingPromo, setEditingPromo] = useState<any>(null);
+  const [deletingPromo, setDeletingPromo] = useState<any>(null);
+
+  const createPromoMutation = useCreatePromotion({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: promotionsQueryKey });
+        toast({ title: "Promotion added successfully" });
+        setIsCreatePromoOpen(false);
+      },
+      onError: () => {
+        toast({ title: "Failed to add promotion", variant: "destructive" });
+      },
+    },
+  });
+
+  const updatePromoMutation = useUpdatePromotion({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: promotionsQueryKey });
+        toast({ title: "Promotion updated successfully" });
+        setEditingPromo(null);
+      },
+      onError: () => {
+        toast({ title: "Failed to update promotion", variant: "destructive" });
+      },
+    },
+  });
+
+  const deletePromoMutation = useDeletePromotion({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: promotionsQueryKey });
+        toast({ title: "Promotion deleted successfully" });
+        setDeletingPromo(null);
+      },
+      onError: () => {
+        toast({ title: "Failed to delete promotion", variant: "destructive" });
+      },
+    },
+  });
+
+  const promoForm = useForm<PromotionFormValues>({
+    resolver: zodResolver(promotionSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      imagePath: "",
+      ctaLabel: "",
+      ctaHref: "",
+      badge: "",
+      sortOrder: 0,
+      active: true,
+    },
+  });
+
+  const onOpenChangeCreatePromo = (open: boolean) => {
+    setIsCreatePromoOpen(open);
+    if (open) {
+      promoForm.reset({
+        title: "",
+        description: "",
+        imagePath: "",
+        ctaLabel: "",
+        ctaHref: "",
+        badge: "",
+        sortOrder: (promotions?.length || 0) * 10,
+        active: true,
+      });
+    }
+  };
+
+  const onOpenChangeEditPromo = (open: boolean, promo?: any) => {
+    if (open && promo) {
+      setEditingPromo(promo);
+      promoForm.reset({
+        title: promo.title,
+        description: promo.description || "",
+        imagePath: promo.imagePath || "",
+        ctaLabel: promo.ctaLabel || "",
+        ctaHref: promo.ctaHref || "",
+        badge: promo.badge || "",
+        sortOrder: promo.sortOrder,
+        active: promo.active,
+      });
+    } else {
+      setEditingPromo(null);
+    }
+  };
+
+  const onPromoSubmit = (data: PromotionFormValues) => {
+    if (editingPromo) {
+      updatePromoMutation.mutate({ id: editingPromo.id, data });
+    } else {
+      createPromoMutation.mutate({ outletId: id, data });
+    }
+  };
+
   if (isNaN(id)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
@@ -300,6 +426,7 @@ export default function OutletDetailPage() {
         <TabsList className="mb-6 bg-muted/50 p-1 w-full sm:w-auto overflow-x-auto justify-start border border-border">
           <TabsTrigger value="details" className="px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">Outlet Details</TabsTrigger>
           <TabsTrigger value="menu" className="px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">Menu Items</TabsTrigger>
+          <TabsTrigger value="promotions" className="px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">Promotions</TabsTrigger>
         </TabsList>
 
         <TabsContent value="details" className="space-y-6 outline-none">
@@ -674,8 +801,335 @@ export default function OutletDetailPage() {
             </div>
           )}
         </TabsContent>
+
+        <TabsContent value="promotions" className="space-y-6 outline-none">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-semibold">Promotions</h2>
+              <p className="text-sm text-muted-foreground">
+                Limited-time offers, events, and featured experiences for this outlet.
+              </p>
+            </div>
+
+            <Dialog open={isCreatePromoOpen} onOpenChange={onOpenChangeCreatePromo}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" /> Add Promotion
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Add new promotion</DialogTitle>
+                  <DialogDescription>
+                    Promotions appear on this outlet's public page under "Current Promotions".
+                  </DialogDescription>
+                </DialogHeader>
+                <PromotionForm
+                  form={promoForm}
+                  onSubmit={onPromoSubmit}
+                  isPending={createPromoMutation.isPending}
+                  onCancel={() => setIsCreatePromoOpen(false)}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          {isPromosLoading ? (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {[1, 2, 3].map((i) => (
+                <Card key={i}>
+                  <Skeleton className="h-32 w-full rounded-none" />
+                  <CardHeader className="space-y-2">
+                    <Skeleton className="h-5 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          ) : !promotions || promotions.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                <Megaphone className="h-12 w-12 text-muted-foreground opacity-30 mb-4" />
+                <h3 className="text-lg font-medium mb-1">No promotions yet</h3>
+                <p className="text-sm text-muted-foreground mb-6 max-w-sm">
+                  Create promos like happy hour, set menus, or special events to highlight on this outlet's page.
+                </p>
+                <Button onClick={() => onOpenChangeCreatePromo(true)}>
+                  <Plus className="mr-2 h-4 w-4" /> Add your first promotion
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {promotions.map((promo: any) => (
+                <Card key={promo.id} className="overflow-hidden flex flex-col">
+                  {promo.imagePath ? (
+                    <div className="relative aspect-[16/9] bg-muted">
+                      <img
+                        src={`/api/storage/objects/${promo.imagePath.replace(/^\/+/, "")}`}
+                        alt={promo.title}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                      {promo.badge && (
+                        <Badge className="absolute top-2 left-2">{promo.badge}</Badge>
+                      )}
+                      {!promo.active && (
+                        <Badge variant="secondary" className="absolute top-2 right-2">
+                          Inactive
+                        </Badge>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="aspect-[16/9] bg-muted flex items-center justify-center">
+                      <ImageIcon className="h-10 w-10 text-muted-foreground opacity-30" />
+                    </div>
+                  )}
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <CardTitle className="text-base leading-snug line-clamp-2">
+                        {promo.title}
+                      </CardTitle>
+                      {!promo.imagePath && !promo.active && (
+                        <Badge variant="secondary">Inactive</Badge>
+                      )}
+                    </div>
+                    {promo.description && (
+                      <CardDescription className="line-clamp-2">
+                        {promo.description}
+                      </CardDescription>
+                    )}
+                  </CardHeader>
+                  <CardContent className="pt-0 mt-auto">
+                    <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1">
+                        <GripVertical className="h-3 w-3" /> Order {promo.sortOrder}
+                      </span>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => onOpenChangeEditPromo(true, promo)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          <span className="sr-only">Edit</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => setDeletingPromo(promo)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span className="sr-only">Delete</span>
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          <Dialog
+            open={!!editingPromo}
+            onOpenChange={(open) => onOpenChangeEditPromo(open, editingPromo)}
+          >
+            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Edit promotion</DialogTitle>
+                <DialogDescription>Update this promotion's details.</DialogDescription>
+              </DialogHeader>
+              <PromotionForm
+                form={promoForm}
+                onSubmit={onPromoSubmit}
+                isPending={updatePromoMutation.isPending}
+                onCancel={() => setEditingPromo(null)}
+              />
+            </DialogContent>
+          </Dialog>
+
+          <AlertDialog
+            open={!!deletingPromo}
+            onOpenChange={(open) => !open && setDeletingPromo(null)}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete promotion?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently remove "{deletingPromo?.title}" from this outlet. This action
+                  cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() =>
+                    deletingPromo && deletePromoMutation.mutate({ id: deletingPromo.id })
+                  }
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function PromotionForm({
+  form,
+  onSubmit,
+  isPending,
+  onCancel,
+}: {
+  form: any;
+  onSubmit: (data: PromotionFormValues) => void;
+  isPending: boolean;
+  onCancel: () => void;
+}) {
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+        <FormField
+          control={form.control}
+          name="imagePath"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Image (Optional)</FormLabel>
+              <FormControl>
+                <ImageUpload value={field.value} onChange={field.onChange} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="title"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Title</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g. Sunset Happy Hour" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description</FormLabel>
+              <FormControl>
+                <Textarea
+                  placeholder="Describe the offer, event, or experience..."
+                  rows={3}
+                  {...field}
+                  value={field.value || ""}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            control={form.control}
+            name="badge"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Badge (Optional)</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g. New, Limited" {...field} value={field.value || ""} />
+                </FormControl>
+                <FormDescription>Small label shown over the card.</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="sortOrder"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Sort order</FormLabel>
+                <FormControl>
+                  <Input type="number" {...field} />
+                </FormControl>
+                <FormDescription>Lower numbers display first.</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            control={form.control}
+            name="ctaLabel"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>CTA Label (Optional)</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g. Reserve" {...field} value={field.value || ""} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="ctaHref"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>CTA Link (Optional)</FormLabel>
+                <FormControl>
+                  <Input placeholder="https://..." {...field} value={field.value || ""} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <FormField
+          control={form.control}
+          name="active"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base">Active</FormLabel>
+                <FormDescription>Show this promotion on the public site.</FormDescription>
+              </div>
+              <FormControl>
+                <Switch checked={field.value} onCheckedChange={field.onChange} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? "Saving..." : "Save promotion"}
+          </Button>
+        </DialogFooter>
+      </form>
+    </Form>
   );
 }
 

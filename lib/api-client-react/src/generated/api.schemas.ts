@@ -189,6 +189,58 @@ export interface UpdateMenuItemBody {
   featured?: boolean;
 }
 
+export interface Promotion {
+  id: number;
+  outletId: number;
+  title: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  imagePath?: string | null;
+  /** @nullable */
+  ctaLabel?: string | null;
+  /** @nullable */
+  ctaHref?: string | null;
+  /** @nullable */
+  badge?: string | null;
+  sortOrder: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePromotionBody {
+  title: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  imagePath?: string | null;
+  /** @nullable */
+  ctaLabel?: string | null;
+  /** @nullable */
+  ctaHref?: string | null;
+  /** @nullable */
+  badge?: string | null;
+  sortOrder?: number;
+  active?: boolean;
+}
+
+export interface UpdatePromotionBody {
+  title?: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  imagePath?: string | null;
+  /** @nullable */
+  ctaLabel?: string | null;
+  /** @nullable */
+  ctaHref?: string | null;
+  /** @nullable */
+  badge?: string | null;
+  sortOrder?: number;
+  active?: boolean;
+}
+
 export interface GalleryImage {
   id: number;
   /** @nullable */
@@ -263,4 +315,8 @@ export type ListBannersParams = {
 
 export type ListGalleryImagesParams = {
   outletId?: number;
+};
+
+export type ListPromotionsParams = {
+  activeOnly?: boolean;
 };

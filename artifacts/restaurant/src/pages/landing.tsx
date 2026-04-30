@@ -348,7 +348,7 @@ function HighlightGallerySection() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: index * 0.1 }}
-            className="relative min-w-[80vw] md:min-w-[40vw] lg:min-w-[30vw] aspect-[4/5] md:aspect-[3/4] snap-center shrink-0"
+            className="relative min-w-[55vw] md:min-w-[28vw] lg:min-w-[20vw] aspect-[4/5] md:aspect-[3/4] snap-center shrink-0"
           >
             <img
               src={getImageUrl(img.imagePath)}
