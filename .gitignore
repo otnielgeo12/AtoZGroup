@@ -51,3 +51,7 @@ Thumbs.db
 # Secrets
 .env
 
+# Deployment artifacts (generated locally)
+api-server-deploy/
+api-server-deploy.zip
+
