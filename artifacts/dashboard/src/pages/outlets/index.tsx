@@ -3,17 +3,32 @@ import { Link } from "wouter";
 import { Store, MapPin, Clock, Utensils, Phone, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
 
 export default function OutletsPage() {
   const { data: outlets, isLoading } = useListOutlets();
+  
+  // Detektif tetap berjalan
+  console.log("ISI ASLI OUTLETS:", outlets);
+
+  const safeOutlets: any = outlets;
+  
+  const outletsData = Array.isArray(safeOutlets) 
+    ? safeOutlets 
+    : Array.isArray(safeOutlets?.data) 
+      ? safeOutlets.data 
+      : Array.isArray(safeOutlets?.items) 
+        ? safeOutlets.items 
+        : [];
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Outlets</h1>
-          <p className="text-muted-foreground mt-1">Manage locations, details, and menus for all 9 outlets.</p>
+          {/* Angka 9-nya kita buat dinamis sesuai jumlah data asli! */}
+          <p className="text-muted-foreground mt-1">
+            Manage locations, details, and menus for {outletsData.length > 0 ? `all ${outletsData.length}` : 'your'} outlets.
+          </p>
         </div>
       </div>
 
@@ -33,15 +48,15 @@ export default function OutletsPage() {
             </Card>
           ))}
         </div>
-      ) : !outlets?.length ? (
+      ) : outletsData.length === 0 ? (
         <div className="text-center py-16 px-4 bg-card border border-dashed rounded-lg">
           <Store className="w-12 h-12 mx-auto text-muted-foreground mb-4 opacity-20" />
           <h3 className="text-lg font-medium text-foreground">No outlets found</h3>
-          <p className="text-muted-foreground mt-1">There are no outlets configured in the system.</p>
+          <p className="text-muted-foreground mt-1">There are no outlets configured in the system or data is empty.</p>
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {outlets.map((outlet) => (
+          {outletsData.map((outlet: any) => (
             <Link key={outlet.id} href={`/outlets/${outlet.id}`}>
               <a className="block h-full outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg" data-testid={`link-outlet-${outlet.id}`}>
                 <Card className="h-full flex flex-col hover:shadow-md transition-all duration-200 group border-border hover:border-primary/50 overflow-hidden">

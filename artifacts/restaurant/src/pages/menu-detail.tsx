@@ -1,14 +1,19 @@
+import { useState } from "react";
 import { useParams, Link } from "wouter";
 import { motion } from "framer-motion";
-import { ArrowLeft, Clock, MapPin } from "lucide-react";
+import { ArrowLeft, Clock, MapPin, Utensils, GlassWater } from "lucide-react";
 import {
   useGetOutletBySlug,
   getGetOutletBySlugQueryKey,
   useListMenuItems,
   getListMenuItemsQueryKey,
+  useListBeverages,
+  getListBeveragesQueryKey,
 } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fallbackOutlets, getImageUrl } from "@/lib/assets";
+
+type MenuTab = "food" | "beverages";
 
 function categoryDescription(category: string): string {
   const map: Record<string, string> = {
@@ -22,9 +27,24 @@ function categoryDescription(category: string): string {
   return map[category] || "Crafted with care from seasonal ingredients.";
 }
 
+function beverageCategoryDescription(category: string): string {
+  const map: Record<string, string> = {
+    "Cold Drinks": "Refreshing chilled drinks for any time of day.",
+    "Hot Drinks": "Warm up with a comforting cup.",
+    Cocktails: "Expertly mixed drinks for every occasion.",
+    Mocktails: "All the flavour, none of the alcohol.",
+    Wines: "Curated selection of reds, whites, and rosés.",
+    Beers: "Draught and bottled options from around the world.",
+    Juices: "Freshly pressed and packed with goodness.",
+    Spirits: "Premium spirits served straight or mixed.",
+  };
+  return map[category] || "Thoughtfully crafted beverages.";
+}
+
 export function MenuDetail() {
   const params = useParams();
   const slug = params.slug;
+  const [activeTab, setActiveTab] = useState<MenuTab>("food");
 
   const { data: apiOutlet, isLoading: outletLoading } = useGetOutletBySlug(slug!, {
     query: { enabled: !!slug, queryKey: getGetOutletBySlugQueryKey(slug!) },
@@ -35,6 +55,10 @@ export function MenuDetail() {
 
   const { data: menuItems, isLoading: menuLoading } = useListMenuItems(outlet?.id || -1, {
     query: { enabled: !!outlet?.id, queryKey: getListMenuItemsQueryKey(outlet?.id || -1) },
+  });
+
+  const { data: beverages, isLoading: bevLoading } = useListBeverages(outlet?.id || -1, {
+    query: { enabled: !!outlet?.id, queryKey: getListBeveragesQueryKey(outlet?.id || -1) },
   });
 
   if (outletLoading) {
@@ -64,8 +88,12 @@ export function MenuDetail() {
     );
   }
 
-  const categories = menuItems
+  const foodCategories = menuItems
     ? Array.from(new Set(menuItems.map((i) => i.category)))
+    : [];
+
+  const bevCategories = beverages
+    ? Array.from(new Set(beverages.map((b) => b.category)))
     : [];
 
   return (
@@ -121,81 +149,190 @@ export function MenuDetail() {
         </div>
       </section>
 
-      {/* Menu sections */}
+      {/* Food / Beverages Toggle */}
+      <section className="sticky top-[64px] z-20 bg-zinc-950/95 backdrop-blur-sm border-b border-white/10">
+        <div className="container mx-auto px-6">
+          <div className="flex items-center gap-1 py-4">
+            <button
+              id="tab-food"
+              onClick={() => setActiveTab("food")}
+              data-testid="tab-food"
+              className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-medium tracking-wider uppercase transition-all duration-200 ${
+                activeTab === "food"
+                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                  : "text-white/60 hover:text-white border border-white/15 hover:border-white/30"
+              }`}
+            >
+              <Utensils size={13} />
+              Food Menu
+            </button>
+            <button
+              id="tab-beverages"
+              onClick={() => setActiveTab("beverages")}
+              data-testid="tab-beverages"
+              className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-medium tracking-wider uppercase transition-all duration-200 ${
+                activeTab === "beverages"
+                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                  : "text-white/60 hover:text-white border border-white/15 hover:border-white/30"
+              }`}
+            >
+              <GlassWater size={13} />
+              Beverages
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Menu Sections */}
       <section className="py-20 px-6">
         <div className="container mx-auto max-w-5xl">
-          {menuLoading ? (
-            <div className="space-y-8">
-              {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-24 w-full bg-zinc-900" />
-              ))}
-            </div>
-          ) : menuItems && menuItems.length > 0 ? (
-            <div className="space-y-20">
-              {categories.map((category) => (
-                <div key={category}>
-                  <div className="mb-8">
-                    <h2 className="text-3xl md:text-4xl font-serif text-primary mb-2">
-                      {category}
-                    </h2>
-                    <p className="text-white/50 text-sm">
-                      {categoryDescription(category)}
-                    </p>
-                    <div className="h-px bg-white/10 mt-6" />
-                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
-                    {menuItems
-                      .filter((i) => i.category === category)
-                      .map((item: any) => (
-                        <div key={item.id} className="flex gap-4 items-start">
-                          {item.imagePath ? (
-                            <img
-                              src={getImageUrl(item.imagePath)}
-                              alt={item.name}
-                              className="w-28 h-28 md:w-32 md:h-32 rounded object-cover shrink-0 border border-white/10"
-                            />
-                          ) : (
-                            <div className="w-28 h-28 md:w-32 md:h-32 rounded bg-zinc-900 border border-white/10 shrink-0 flex items-center justify-center">
-                              <span className="text-[10px] tracking-widest uppercase text-white/30">
-                                Dish
-                              </span>
-                            </div>
-                          )}
-
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-baseline justify-between gap-3 mb-1.5">
-                              <h3 className="text-lg md:text-xl font-medium text-white leading-tight">
-                                {item.name}
-                              </h3>
-                              <span className="text-lg md:text-xl font-serif text-primary shrink-0">
-                                {item.price}
-                              </span>
-                            </div>
-                            {item.description && (
-                              <p className="text-base text-white/60 leading-relaxed">
-                                {item.description}
-                              </p>
-                            )}
-                            {item.featured && (
-                              <span className="inline-block mt-3 text-[11px] tracking-[0.2em] uppercase text-primary border border-primary/40 px-2.5 py-0.5 rounded-full">
-                                Chef's Pick
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                  </div>
+          {/* ── FOOD TAB ── */}
+          {activeTab === "food" && (
+            <>
+              {menuLoading ? (
+                <div className="space-y-8">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-24 w-full bg-zinc-900" />
+                  ))}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-20 border border-white/10 rounded-sm">
-              <p className="text-white/50 italic font-serif">
-                Menu currently being updated. Please check back soon.
-              </p>
-            </div>
+              ) : menuItems && menuItems.length > 0 ? (
+                <div className="space-y-20">
+                  {foodCategories.map((category) => (
+                    <div key={category}>
+                      <div className="mb-8">
+                        <h2 className="text-3xl md:text-4xl font-serif text-primary mb-2">
+                          {category}
+                        </h2>
+                        <p className="text-white/50 text-sm">
+                          {categoryDescription(category)}
+                        </p>
+                        <div className="h-px bg-white/10 mt-6" />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
+                        {menuItems
+                          .filter((i) => i.category === category)
+                          .map((item: any) => (
+                            <div key={item.id} className="flex gap-4 items-start">
+                              {item.imagePath ? (
+                                <img
+                                  src={getImageUrl(item.imagePath)}
+                                  alt={item.name}
+                                  className="w-28 h-28 md:w-32 md:h-32 rounded object-cover shrink-0 border border-white/10"
+                                />
+                              ) : (
+                                <div className="w-28 h-28 md:w-32 md:h-32 rounded bg-zinc-900 border border-white/10 shrink-0 flex items-center justify-center">
+                                  <span className="text-[10px] tracking-widest uppercase text-white/30">
+                                    Dish
+                                  </span>
+                                </div>
+                              )}
+
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-baseline justify-between gap-3 mb-1.5">
+                                  <h3 className="text-lg md:text-xl font-medium text-white leading-tight">
+                                    {item.name}
+                                  </h3>
+                                  <span className="text-lg md:text-xl font-serif text-primary shrink-0">
+                                    {item.price}
+                                  </span>
+                                </div>
+                                {item.description && (
+                                  <p className="text-base text-white/60 leading-relaxed">
+                                    {item.description}
+                                  </p>
+                                )}
+                                {item.featured && (
+                                  <span className="inline-block mt-3 text-[11px] tracking-[0.2em] uppercase text-primary border border-primary/40 px-2.5 py-0.5 rounded-full">
+                                    Chef's Pick
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-20 border border-white/10 rounded-sm">
+                  <p className="text-white/50 italic font-serif">
+                    Food menu currently being updated. Please check back soon.
+                  </p>
+                </div>
+              )}
+            </>
           )}
+
+          {/* ── BEVERAGES TAB ── */}
+          {activeTab === "beverages" && (
+            <>
+              {bevLoading ? (
+                <div className="space-y-8">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-20 w-full bg-zinc-900" />
+                  ))}
+                </div>
+              ) : beverages && beverages.length > 0 ? (
+                <div className="space-y-20">
+                  {bevCategories.map((category) => (
+                    <div key={category}>
+                      <div className="mb-8">
+                        <h2 className="text-3xl md:text-4xl font-serif text-primary mb-2">
+                          {category}
+                        </h2>
+                        <p className="text-white/50 text-sm">
+                          {beverageCategoryDescription(category)}
+                        </p>
+                        <div className="h-px bg-white/10 mt-6" />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+                        {beverages
+                          .filter((b) => b.category === category)
+                          .map((bev: any) => (
+                            <div key={bev.id} className="flex items-start gap-4">
+                              <div className="w-10 h-10 rounded-full bg-zinc-900 border border-white/10 shrink-0 flex items-center justify-center mt-1">
+                                <GlassWater size={14} className="text-primary/60" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-baseline justify-between gap-3 mb-1">
+                                  <h3 className="text-lg font-medium text-white leading-tight">
+                                    {bev.name}
+                                  </h3>
+                                  <span className="text-lg font-serif text-primary shrink-0">
+                                    {bev.price}
+                                  </span>
+                                </div>
+                                {bev.description && (
+                                  <p className="text-sm text-white/55 leading-relaxed">
+                                    {bev.description}
+                                  </p>
+                                )}
+                                {bev.featured && (
+                                  <span className="inline-block mt-2 text-[11px] tracking-[0.2em] uppercase text-primary border border-primary/40 px-2.5 py-0.5 rounded-full">
+                                    House Favourite
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-20 border border-white/10 rounded-sm">
+                  <GlassWater size={36} className="mx-auto text-white/20 mb-4" />
+                  <p className="text-white/50 italic font-serif">
+                    Beverage menu currently being updated. Please check back soon.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+
         </div>
       </section>
     </div>

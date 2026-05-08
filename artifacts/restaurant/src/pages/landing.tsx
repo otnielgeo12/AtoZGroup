@@ -95,7 +95,7 @@ function HeroSection() {
       </div>
 
       <div className="absolute bottom-10 right-10 z-20 flex gap-3">
-        {displayBanners.map((_, i) => (
+        {displayBanners.map((_, i: number) => (
           <button
             key={i}
             onClick={() => setCurrentIndex(i)}
@@ -348,12 +348,12 @@ function HighlightGallerySection() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: index * 0.1 }}
-            className="relative min-w-[55vw] md:min-w-[28vw] lg:min-w-[20vw] aspect-[4/5] md:aspect-[3/4] snap-center shrink-0"
+            className="relative w-[280px] sm:w-[300px] md:w-[320px] aspect-[4/5] md:aspect-[3/4] snap-center shrink-0 overflow-hidden rounded-md"
           >
             <img
               src={getImageUrl(img.imagePath)}
               alt={img.caption || "Gallery image"}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
             />
           </motion.div>
         ))}

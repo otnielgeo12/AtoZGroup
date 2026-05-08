@@ -517,3 +517,86 @@ export const GetDashboardSummaryResponse = zod.object({
     }),
   ),
 });
+
+// ─────────────────────────────────────────────
+// Beverages
+// ─────────────────────────────────────────────
+
+export const ListBeveragesParams = zod.object({
+  outletId: zod.coerce.number(),
+});
+
+export const ListBeveragesResponseItem = zod.object({
+  id: zod.number(),
+  outletId: zod.number(),
+  category: zod.string(),
+  name: zod.string(),
+  description: zod.string().nullish(),
+  price: zod.string().nullish(),
+  sortOrder: zod.number(),
+  featured: zod.boolean(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+export const ListBeveragesResponse = zod.array(ListBeveragesResponseItem);
+
+export const CreateBeverageParams = zod.object({
+  outletId: zod.coerce.number(),
+});
+
+export const CreateBeverageBody = zod.object({
+  category: zod.string(),
+  name: zod.string(),
+  description: zod.string().nullish(),
+  price: zod.string().nullish(),
+  sortOrder: zod.number().optional(),
+  featured: zod.boolean().optional(),
+});
+
+export const GetBeverageParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetBeverageResponse = zod.object({
+  id: zod.number(),
+  outletId: zod.number(),
+  category: zod.string(),
+  name: zod.string(),
+  description: zod.string().nullish(),
+  price: zod.string().nullish(),
+  sortOrder: zod.number(),
+  featured: zod.boolean(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+export const UpdateBeverageParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateBeverageBody = zod.object({
+  category: zod.string().optional(),
+  name: zod.string().optional(),
+  description: zod.string().nullish(),
+  price: zod.string().nullish(),
+  sortOrder: zod.number().optional(),
+  featured: zod.boolean().optional(),
+});
+
+export const UpdateBeverageResponse = zod.object({
+  id: zod.number(),
+  outletId: zod.number(),
+  category: zod.string(),
+  name: zod.string(),
+  description: zod.string().nullish(),
+  price: zod.string().nullish(),
+  sortOrder: zod.number(),
+  featured: zod.boolean(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+export const DeleteBeverageParams = zod.object({
+  id: zod.coerce.number(),
+});
+

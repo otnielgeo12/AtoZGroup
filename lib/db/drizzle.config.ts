@@ -1,14 +1,22 @@
+import { config } from "dotenv";
 import { defineConfig } from "drizzle-kit";
-import path from "path";
 
-if (!process.env.DATABASE_URL) {
+// Load .env secara eksplisit.
+// Melihat dari struktur folder monorepo kamu sebelumnya, file .env ada di root.
+// Karena file ini ada di lib/db, kita harus mundur 2 folder (../../)
+config({ path: "../../.env" });
+
+const DATABASE_URL = process.env.DATABASE_URL;
+
+if (!DATABASE_URL) {
   throw new Error("DATABASE_URL, ensure the database is provisioned");
 }
 
 export default defineConfig({
-  schema: path.join(__dirname, "./src/schema/index.ts"),
+  // Gunakan relative path langsung, tidak butuh path.join(__dirname, ...)
+  schema: "./src/schema/index.ts",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL,
+    url: DATABASE_URL,
   },
 });

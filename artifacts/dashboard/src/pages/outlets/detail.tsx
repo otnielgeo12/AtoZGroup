@@ -10,16 +10,21 @@ import {
   useCreateMenuItem,
   useUpdateMenuItem,
   useDeleteMenuItem,
+  useListBeverages,
+  useCreateBeverage,
+  useUpdateBeverage,
+  useDeleteBeverage,
   useListPromotions,
   useCreatePromotion,
   useUpdatePromotion,
   useDeletePromotion,
   getGetOutletQueryKey,
   getListMenuItemsQueryKey,
+  getListBeveragesQueryKey,
   getListPromotionsQueryKey
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, MapPin, Phone, Clock, Utensils, Plus, Pencil, Trash2, GripVertical, Store, Megaphone, Image as ImageIcon } from "lucide-react";
+import { ArrowLeft, MapPin, Phone, Clock, Utensils, Plus, Pencil, Trash2, GripVertical, Store, Megaphone, Image as ImageIcon, GlassWater } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -90,6 +95,17 @@ const menuItemSchema = z.object({
 
 type MenuItemFormValues = z.infer<typeof menuItemSchema>;
 
+const beverageSchema = z.object({
+  category: z.string().min(1, "Category is required"),
+  name: z.string().min(1, "Name is required"),
+  description: z.string().nullable().optional(),
+  price: z.string().nullable().optional(),
+  sortOrder: z.coerce.number().int().default(0),
+  featured: z.boolean().default(false),
+});
+
+type BeverageFormValues = z.infer<typeof beverageSchema>;
+
 const promotionSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().nullable().optional(),
@@ -121,6 +137,13 @@ export default function OutletDetailPage() {
     query: {
       enabled: !!id && !isNaN(id),
       queryKey: getListMenuItemsQueryKey(id)
+    }
+  });
+
+  const { data: beverages, isLoading: isBevLoading } = useListBeverages(id, {
+    query: {
+      enabled: !!id && !isNaN(id),
+      queryKey: getListBeveragesQueryKey(id)
     }
   });
 
@@ -278,6 +301,80 @@ export default function OutletDetailPage() {
     }
   };
 
+  // Beverages state
+  const beveragesQueryKey = getListBeveragesQueryKey(id);
+  const [isCreateBevOpen, setIsCreateBevOpen] = useState(false);
+  const [editingBev, setEditingBev] = useState<any>(null);
+  const [deletingBev, setDeletingBev] = useState<any>(null);
+
+  const createBevMutation = useCreateBeverage({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: beveragesQueryKey });
+        toast({ title: "Beverage added successfully" });
+        setIsCreateBevOpen(false);
+      },
+      onError: () => {
+        toast({ title: "Failed to add beverage", variant: "destructive" });
+      }
+    }
+  });
+
+  const updateBevMutation = useUpdateBeverage({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: beveragesQueryKey });
+        toast({ title: "Beverage updated successfully" });
+        setEditingBev(null);
+      },
+      onError: () => {
+        toast({ title: "Failed to update beverage", variant: "destructive" });
+      }
+    }
+  });
+
+  const deleteBevMutation = useDeleteBeverage({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: beveragesQueryKey });
+        toast({ title: "Beverage deleted successfully" });
+        setDeletingBev(null);
+      },
+      onError: () => {
+        toast({ title: "Failed to delete beverage", variant: "destructive" });
+      }
+    }
+  });
+
+  const bevForm = useForm<BeverageFormValues>({
+    resolver: zodResolver(beverageSchema),
+    defaultValues: { category: "", name: "", description: "", price: "", sortOrder: 0, featured: false }
+  });
+
+  const onOpenChangeCreateBev = (open: boolean) => {
+    setIsCreateBevOpen(open);
+    if (open) {
+      bevForm.reset({ category: "", name: "", description: "", price: "", sortOrder: (beverages?.length || 0) * 10, featured: false });
+    }
+  };
+
+  const onOpenChangeEditBev = (open: boolean, item?: any) => {
+    if (open && item) {
+      setEditingBev(item);
+      bevForm.reset({ category: item.category, name: item.name, description: item.description || "", price: item.price || "", sortOrder: item.sortOrder, featured: item.featured });
+    } else {
+      setEditingBev(null);
+    }
+  };
+
+  const onBevSubmit = (data: BeverageFormValues) => {
+    if (editingBev) {
+      updateBevMutation.mutate({ id: editingBev.id, data });
+    } else {
+      createBevMutation.mutate({ outletId: id, data });
+    }
+  };
+
   // Promotions state
   const promotionsQueryKey = getListPromotionsQueryKey(id);
   const { data: promotions, isLoading: isPromosLoading } = useListPromotions(id, undefined, {
@@ -426,6 +523,7 @@ export default function OutletDetailPage() {
         <TabsList className="mb-6 bg-muted/50 p-1 w-full sm:w-auto overflow-x-auto justify-start border border-border">
           <TabsTrigger value="details" className="px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">Outlet Details</TabsTrigger>
           <TabsTrigger value="menu" className="px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">Menu Items</TabsTrigger>
+          <TabsTrigger value="beverages" className="px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">Beverages</TabsTrigger>
           <TabsTrigger value="promotions" className="px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">Promotions</TabsTrigger>
         </TabsList>
 
@@ -802,6 +900,127 @@ export default function OutletDetailPage() {
           )}
         </TabsContent>
 
+        <TabsContent value="beverages" className="space-y-6 outline-none">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-semibold">Beverages</h2>
+              <p className="text-sm text-muted-foreground">Manage the beverage menu for this outlet.</p>
+            </div>
+            <Dialog open={isCreateBevOpen} onOpenChange={onOpenChangeCreateBev}>
+              <DialogTrigger asChild>
+                <Button data-testid="button-create-beverage">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Beverage
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Add Beverage</DialogTitle>
+                  <DialogDescription>Add a new beverage to {outlet?.name}'s menu.</DialogDescription>
+                </DialogHeader>
+                <BeverageForm form={bevForm} onSubmit={onBevSubmit} isPending={createBevMutation.isPending} onCancel={() => setIsCreateBevOpen(false)} />
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <Dialog open={!!editingBev} onOpenChange={(open) => onOpenChangeEditBev(open, editingBev)}>
+            <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+              <DialogHeader><DialogTitle>Edit Beverage</DialogTitle></DialogHeader>
+              <BeverageForm form={bevForm} onSubmit={onBevSubmit} isPending={updateBevMutation.isPending} onCancel={() => setEditingBev(null)} />
+            </DialogContent>
+          </Dialog>
+
+          <AlertDialog open={!!deletingBev} onOpenChange={(open) => !open && setDeletingBev(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>This will permanently delete the beverage. This action cannot be undone.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => deleteBevMutation.mutate({ id: deletingBev.id })}
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {isBevLoading ? (
+            <Card>
+              <CardContent className="p-0">
+                <div className="divide-y border-t border-border">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="p-4 flex gap-4">
+                      <div className="space-y-2 flex-1">
+                        <Skeleton className="h-5 w-1/4" />
+                        <Skeleton className="h-4 w-1/2" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ) : !beverages?.length ? (
+            <div className="text-center py-16 px-4 bg-card border border-dashed rounded-lg">
+              <GlassWater className="w-12 h-12 mx-auto text-muted-foreground mb-4 opacity-20" />
+              <h3 className="text-lg font-medium text-foreground">No beverages</h3>
+              <p className="text-muted-foreground mt-1 mb-4">This outlet's beverage menu is currently empty.</p>
+              <Button onClick={() => setIsCreateBevOpen(true)} variant="outline">
+                <Plus className="w-4 h-4 mr-2" />
+                Add First Beverage
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-8">
+              {Object.entries(
+                beverages.reduce((acc: Record<string, typeof beverages>, item) => {
+                  if (!acc[item.category]) acc[item.category] = [];
+                  acc[item.category].push(item);
+                  return acc;
+                }, {})
+              ).map(([category, items]) => (
+                <div key={category} className="space-y-3">
+                  <h3 className="font-serif text-xl border-b border-border pb-2 text-primary">{category}</h3>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {items.map((item) => (
+                      <Card key={item.id} className="overflow-hidden hover:border-primary/30 transition-colors flex flex-col h-full">
+                        <div className="flex p-3 gap-3">
+                          <div className="h-12 w-12 shrink-0 rounded bg-muted flex items-center justify-center border border-border">
+                            <GlassWater className="w-5 h-5 text-muted-foreground/40" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start">
+                              <h4 className="font-semibold text-sm truncate pr-2">{item.name}</h4>
+                              <span className="font-medium text-sm text-primary shrink-0">{item.price}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{item.description}</p>
+                          </div>
+                        </div>
+                        <div className="mt-auto bg-muted/20 border-t border-border p-2 px-3 flex items-center justify-between text-xs text-muted-foreground">
+                          <div className="flex items-center gap-2">
+                            {item.featured && <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">Featured</Badge>}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary" onClick={() => onOpenChangeEditBev(true, item)} data-testid={`action-edit-bev-${item.id}`}>
+                              <Pencil className="w-3 h-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => setDeletingBev(item)} data-testid={`action-delete-bev-${item.id}`}>
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
         <TabsContent value="promotions" className="space-y-6 outline-none">
           <div className="flex justify-between items-center">
             <div>
@@ -1126,6 +1345,112 @@ function PromotionForm({
           </Button>
           <Button type="submit" disabled={isPending}>
             {isPending ? "Saving..." : "Save promotion"}
+          </Button>
+        </DialogFooter>
+      </form>
+    </Form>
+  );
+}
+
+function BeverageForm({
+  form,
+  onSubmit,
+  isPending,
+  onCancel,
+}: {
+  form: any;
+  onSubmit: (data: BeverageFormValues) => void;
+  isPending: boolean;
+  onCancel: () => void;
+}) {
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g. Mango Lassi" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="category"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Category</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g. Cold Drinks" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="price"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Price</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g. $6" {...field} value={field.value || ""} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="sortOrder"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Sort Order</FormLabel>
+                <FormControl>
+                  <Input type="number" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description (Optional)</FormLabel>
+              <FormControl>
+                <Textarea placeholder="Beverage description..." {...field} value={field.value || ""} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="featured"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+              <div className="space-y-0.5">
+                <FormLabel>Featured Item</FormLabel>
+              </div>
+              <FormControl>
+                <Switch checked={field.value} onCheckedChange={field.onChange} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>Cancel</Button>
+          <Button type="submit" disabled={isPending} data-testid="button-save-beverage">
+            {isPending ? "Saving..." : "Save Beverage"}
           </Button>
         </DialogFooter>
       </form>

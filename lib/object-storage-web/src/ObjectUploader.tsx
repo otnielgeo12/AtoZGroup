@@ -5,7 +5,7 @@ import type { UppyFile, UploadResult } from "@uppy/core";
 import DashboardModal from "@uppy/react/dashboard-modal";
 import "@uppy/core/css/style.min.css";
 import "@uppy/dashboard/css/style.min.css";
-import AwsS3 from "@uppy/aws-s3";
+import XHRUpload from "@uppy/xhr-upload";
 
 interface ObjectUploaderProps {
   maxNumberOfFiles?: number;
@@ -72,26 +72,51 @@ export function ObjectUploader({
   useEffect(() => { onGetUploadParametersRef.current = onGetUploadParameters; }, [onGetUploadParameters]);
 
   const [showModal, setShowModal] = useState(false);
-  const [uppy] = useState(() =>
-    new Uppy({
+  const [uppy] = useState(() => {
+    const uppyInstance = new Uppy({
       restrictions: {
         maxNumberOfFiles,
         maxFileSize,
       },
       autoProceed: false,
-    })
-      .use(AwsS3, {
-        shouldUseMultipart: false,
-        getUploadParameters: (file) => onGetUploadParametersRef.current(file),
-      })
-      .on("complete", (result) => {
-        onCompleteRef.current?.(result);
-      })
-  );
+    });
+
+    uppyInstance.use(XHRUpload, {
+      endpoint: "/placeholder",
+      formData: false,
+      getResponseData: (xhr) => {
+        return { url: xhr.responseURL };
+      },
+    });
+
+    uppyInstance.addPreProcessor(async (fileIDs) => {
+      for (const fileID of fileIDs) {
+        const file = uppyInstance.getFile(fileID);
+        try {
+          const params = await onGetUploadParametersRef.current(file);
+          uppyInstance.setFileState(fileID, {
+            xhrUpload: {
+              endpoint: params.url,
+              method: params.method,
+              headers: params.headers,
+            },
+          });
+        } catch (error) {
+          uppyInstance.info({ message: "Failed to get upload URL", details: String(error) }, "error", 3000);
+        }
+      }
+    });
+
+    uppyInstance.on("complete", (result) => {
+      onCompleteRef.current?.(result);
+    });
+
+    return uppyInstance;
+  });
 
   return (
     <div>
-      <button onClick={() => setShowModal(true)} className={buttonClassName}>
+      <button type="button" onClick={() => setShowModal(true)} className={buttonClassName}>
         {children}
       </button>
 

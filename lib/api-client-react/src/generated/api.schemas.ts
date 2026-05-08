@@ -320,3 +320,40 @@ export type ListGalleryImagesParams = {
 export type ListPromotionsParams = {
   activeOnly?: boolean;
 };
+
+export interface Beverage {
+  id: number;
+  outletId: number;
+  category: string;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  price?: string | null;
+  sortOrder: number;
+  featured: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateBeverageBody {
+  category: string;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  price?: string | null;
+  sortOrder?: number;
+  featured?: boolean;
+}
+
+export interface UpdateBeverageBody {
+  category?: string;
+  name?: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  price?: string | null;
+  sortOrder?: number;
+  featured?: boolean;
+}
