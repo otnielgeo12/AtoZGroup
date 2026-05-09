@@ -182,6 +182,12 @@ importers:
       '@google-cloud/storage':
         specifier: ^7.19.0
         version: 7.19.0
+      '@workspace/api-zod':
+        specifier: workspace:*
+        version: link:../../lib/api-zod
+      '@workspace/db':
+        specifier: workspace:*
+        version: link:../../lib/db
       cookie-parser:
         specifier: ^1.4.7
         version: 1.4.7
