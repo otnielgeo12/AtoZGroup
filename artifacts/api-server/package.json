@@ -37,6 +37,9 @@
     "tsx": "^4.7.1"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@clerk/shared", "esbuild"]
+    "onlyBuiltDependencies": [
+      "@clerk/shared",
+      "esbuild"
+    ]
   }
 }
