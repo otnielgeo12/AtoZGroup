@@ -3,9 +3,12 @@
   "version": "0.0.0",
   "main": "artifacts/api-server/src/index.ts",
   "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "build": "pnpm -r --if-present run build",
-    "start": "node dist/index.js",
+    "start": "cd artifacts/api-server && pnpm run start",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
