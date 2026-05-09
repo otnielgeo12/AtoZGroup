@@ -7,11 +7,11 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "build": "pnpm -r --if-present run build",
-    "postinstall": "pnpm run build",
-    "start": "cd artifacts/api-server && pnpm run start",
+    "build": "npx --yes pnpm -r --if-present run build",
+    "postinstall": "npx --yes pnpm run build",
+    "start": "cd artifacts/api-server && npx --yes pnpm run start",
     "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "typecheck": "npx --yes pnpm run typecheck:libs && npx --yes pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
   "private": true,
   "devDependencies": {
