@@ -22,13 +22,13 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- `pnpm --filter @workspace/api-server run dev` — run API server locally
+- API server has been moved to `/Users/mac/Documents/api-server` — run `pnpm run dev` from there
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
 
 ## Artifacts
 
-- `artifacts/api-server` (Express): shared backend for the public site and admin dashboard. Routes at `/api/*`. Clerk middleware (`@clerk/express`) wired in `src/app.ts`; Clerk OAuth proxy mounted before body parsers.
+- **API server** (Express): moved to standalone project at `/Users/mac/Documents/api-server`. Routes at `/api/*`. Clerk middleware (`@clerk/express`) wired in `src/app.ts`; Clerk OAuth proxy mounted before body parsers. Run `pnpm run dev` from that directory.
 - `artifacts/restaurant` (React + Vite): public Avenue Hospitality landing at `/`. Auto-rotating banners, 9 outlets, gallery, and a 3D flippable menu page. Falls back to local `src/assets/*` images when API content is missing.
 - `artifacts/dashboard` (React + Vite): Clerk-protected admin at `/dashboard/`. CRUD for banners, outlets, menu items, gallery, and site info using shared OpenAPI-generated hooks. Uses `@workspace/object-storage-web` `ObjectUploader` for image uploads (button labeled "Upload Image").
 - `artifacts/mockup-sandbox` (Vite): component design sandbox.

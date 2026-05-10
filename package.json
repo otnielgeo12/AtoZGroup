@@ -1,7 +1,7 @@
 {
   "name": "workspace",
   "version": "0.0.0",
-  "main": "artifacts/api-server/src/index.ts",
+
   "license": "MIT",
   "engines": {
     "node": ">=22.0.0"
@@ -9,7 +9,7 @@
   "scripts": {
     "build": "npx --yes pnpm -r --if-present run build",
     "postinstall": "npx --yes pnpm run build",
-    "start": "cd artifacts/api-server && npx --yes pnpm run start",
+    "start": "echo 'API server has been moved to /Users/mac/Documents/api-server — run pnpm start from there'",
     "typecheck:libs": "tsc --build",
     "typecheck": "npx --yes pnpm run typecheck:libs && npx --yes pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
