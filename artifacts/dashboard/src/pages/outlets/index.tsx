@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { Store, MapPin, Clock, Utensils, Phone, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getImageUrl } from "@/lib/assets";
 
 export default function OutletsPage() {
   const { data: outlets, isLoading } = useListOutlets();
@@ -63,7 +64,7 @@ export default function OutletsPage() {
                   <div className="relative h-40 w-full bg-muted overflow-hidden">
                     {outlet.cardImagePath || outlet.coverImagePath ? (
                       <img 
-                        src={`/api/storage${outlet.cardImagePath || outlet.coverImagePath}`} 
+                        src={getImageUrl(outlet.cardImagePath || outlet.coverImagePath)} 
                         alt={outlet.name}
                         className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105"
                       />

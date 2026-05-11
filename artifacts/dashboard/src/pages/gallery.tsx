@@ -61,6 +61,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ImageUpload } from "@/components/image-upload";
+import { getImageUrl } from "@/lib/assets";
 
 const galleryImageSchema = z.object({
   outletId: z.coerce.number().nullable().optional().transform(val => val === 0 ? null : val),
@@ -288,7 +289,7 @@ export default function GalleryPage() {
             <Card key={image.id} className="overflow-hidden transition-all duration-200 hover:shadow-md group">
               <div className="relative aspect-square w-full">
                 <img 
-                  src={`/api/storage${image.imagePath}`} 
+                  src={getImageUrl(image.imagePath)} 
                   alt={image.caption || "Gallery image"} 
                   className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105"
                 />

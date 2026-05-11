@@ -24,6 +24,7 @@ import {
   getListPromotionsQueryKey
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { getImageUrl } from "@/lib/assets";
 import { ArrowLeft, MapPin, Phone, Clock, Utensils, Plus, Pencil, Trash2, GripVertical, Store, Megaphone, Image as ImageIcon, GlassWater } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -851,7 +852,7 @@ export default function OutletDetailPage() {
                         <div className="flex p-3 gap-3">
                           {item.imagePath ? (
                             <div className="h-16 w-16 shrink-0 rounded bg-muted overflow-hidden">
-                              <img src={`/api/storage${item.imagePath}`} alt={item.name} className="w-full h-full object-cover" />
+                              <img src={getImageUrl(item.imagePath)} alt={item.name} className="w-full h-full object-cover" />
                             </div>
                           ) : (
                             <div className="h-16 w-16 shrink-0 rounded bg-muted flex items-center justify-center border border-border">
@@ -1085,7 +1086,7 @@ export default function OutletDetailPage() {
                   {promo.imagePath ? (
                     <div className="relative aspect-[16/9] bg-muted">
                       <img
-                        src={`/api/storage/objects/${promo.imagePath.replace(/^\/+/, "")}`}
+                        src={getImageUrl(promo.imagePath)}
                         alt={promo.title}
                         className="w-full h-full object-cover"
                         onError={(e) => {
