@@ -10,6 +10,7 @@ import {
   getListBannersQueryKey
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { getImageUrl } from "@/lib/assets";
 import { Plus, MoreHorizontal, Pencil, Trash2, GripVertical, Check, X, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -265,7 +266,7 @@ export default function BannersPage() {
             <Card key={banner.id} className={`overflow-hidden transition-all duration-200 hover:shadow-md ${!banner.active ? 'opacity-75 grayscale-[0.2]' : ''}`}>
               <div className="relative aspect-video w-full group">
                 <img 
-                  src={`/api/storage${banner.imagePath}`} 
+                  src={getImageUrl(banner.imagePath)} 
                   alt={banner.title || "Banner"} 
                   className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105"
                 />

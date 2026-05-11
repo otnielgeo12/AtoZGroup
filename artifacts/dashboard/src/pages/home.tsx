@@ -1,5 +1,6 @@
 import { useGetDashboardSummary } from "@workspace/api-client-react";
 import { Store, Image as ImageIcon, UtensilsCrossed, Images, ArrowRight } from "lucide-react";
+import { getImageUrl } from "@/lib/assets";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
@@ -76,7 +77,7 @@ export default function HomePage() {
                   <div key={item.id} className="flex items-center gap-4 p-2 -mx-2 rounded-md hover:bg-muted/50 transition-colors">
                     <div className="h-12 w-12 rounded-md bg-secondary flex items-center justify-center overflow-hidden shrink-0 border border-border">
                       {item.imagePath ? (
-                        <img src={`/api/storage${item.imagePath}`} alt={item.name} className="h-full w-full object-cover" />
+                        <img src={getImageUrl(item.imagePath)} alt={item.name} className="h-full w-full object-cover" />
                       ) : (
                         <UtensilsCrossed className="w-5 h-5 text-secondary-foreground/50" />
                       )}
