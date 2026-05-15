@@ -31,7 +31,7 @@ export function Gallery() {
                 className="relative overflow-hidden group break-inside-avoid rounded-sm bg-muted"
               >
                 <img
-                  src={getImageUrl(img.imagePath)}
+                  src={getImageUrl(img.imagePath, 800)}
                   alt={img.caption || "Gallery image"}
                   className="w-full h-auto object-cover transform transition-transform duration-700 group-hover:scale-105"
                   loading="lazy"

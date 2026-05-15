@@ -175,7 +175,7 @@ export const fallbackGallery: GalleryImage[] = [
   { id: -6, imagePath: outletBodega, caption: null, outletId: null, sortOrder: 6, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
 ];
 
-export function getImageUrl(imagePath?: string | null, fallback?: string): string {
+export function getImageUrl(imagePath?: string | null, width?: number, fallback?: string): string {
   if (!imagePath) return fallback || banner1;
   // If it's a generated asset path (like imported above)
   if (imagePath.startsWith('/src/assets') || imagePath.startsWith('data:') || imagePath.startsWith('http') || imagePath.startsWith('/assets/')) {
@@ -183,5 +183,6 @@ export function getImageUrl(imagePath?: string | null, fallback?: string): strin
   }
   // Otherwise, it's an API storage path
   const baseUrl = (import.meta as any).env?.VITE_API_URL || "";
-  return `${baseUrl}/api/storage${imagePath}`;
+  const url = `${baseUrl}/api/storage${imagePath}`;
+  return width ? `${url}?w=${width}` : url;
 }

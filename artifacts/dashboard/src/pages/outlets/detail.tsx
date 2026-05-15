@@ -1084,7 +1084,7 @@ export default function OutletDetailPage() {
               {promotions.map((promo: any) => (
                 <Card key={promo.id} className="overflow-hidden flex flex-col">
                   {promo.imagePath ? (
-                    <div className="relative aspect-[16/9] bg-muted">
+                    <div className="relative aspect-[9/16] bg-muted">
                       <img
                         src={getImageUrl(promo.imagePath)}
                         alt={promo.title}
@@ -1103,7 +1103,7 @@ export default function OutletDetailPage() {
                       )}
                     </div>
                   ) : (
-                    <div className="aspect-[16/9] bg-muted flex items-center justify-center">
+                    <div className="aspect-[9/16] bg-muted flex items-center justify-center">
                       <ImageIcon className="h-10 w-10 text-muted-foreground opacity-30" />
                     </div>
                   )}
