@@ -18,9 +18,10 @@ interface ObjectUploaderProps {
   onGetUploadParameters: (
     file: UppyFile<Record<string, unknown>, Record<string, unknown>>
   ) => Promise<{
-    method: "PUT";
+    method: "PUT" | "POST";
     url: string;
     headers?: Record<string, string>;
+    file?: File | Blob;
   }>;
   onComplete?: (
     result: UploadResult<Record<string, unknown>, Record<string, unknown>>
@@ -94,6 +95,12 @@ export function ObjectUploader({
         const file = uppyInstance.getFile(fileID);
         try {
           const params = await onGetUploadParametersRef.current(file);
+          if (params.file) {
+            uppyInstance.setFileState(fileID, {
+              data: params.file,
+              size: params.file.size,
+            });
+          }
           uppyInstance.setFileState(fileID, {
             xhrUpload: {
               endpoint: params.url,
@@ -102,7 +109,9 @@ export function ObjectUploader({
             },
           });
         } catch (error) {
+          console.error("[ObjectUploader] Failed to get upload parameters:", error);
           uppyInstance.info({ message: "Failed to get upload URL", details: String(error) }, "error", 3000);
+          throw error; // This prevents the upload from continuing with invalid config
         }
       }
     });

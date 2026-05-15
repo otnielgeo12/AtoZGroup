@@ -105,6 +105,7 @@ export function MenuDetail() {
             src={getImageUrl(outlet.coverImagePath || outlet.cardImagePath)}
             alt={outlet.name}
             className="w-full h-full object-cover"
+            decoding="async"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-zinc-950/30" />
         </div>
@@ -217,9 +218,11 @@ export function MenuDetail() {
                             <div key={item.id} className="flex gap-4 items-start">
                               {item.imagePath ? (
                                 <img
-                                  src={getImageUrl(item.imagePath)}
+                                  src={getImageUrl(item.imagePath, 400)}
                                   alt={item.name}
                                   className="w-28 h-28 md:w-32 md:h-32 rounded object-cover shrink-0 border border-white/10"
+                                  loading="lazy"
+                                  decoding="async"
                                 />
                               ) : (
                                 <div className="w-28 h-28 md:w-32 md:h-32 rounded bg-zinc-900 border border-white/10 shrink-0 flex items-center justify-center">
@@ -234,7 +237,7 @@ export function MenuDetail() {
                                   <h3 className="text-lg md:text-xl font-medium text-white leading-tight">
                                     {item.name}
                                   </h3>
-                                  <span className="text-lg md:text-xl font-serif text-primary shrink-0">
+                                  <span className="text-lg md:text-xl font-serif text-white shrink-0">
                                     {item.price}
                                   </span>
                                 </div>
@@ -301,7 +304,7 @@ export function MenuDetail() {
                                   <h3 className="text-lg font-medium text-white leading-tight">
                                     {bev.name}
                                   </h3>
-                                  <span className="text-lg font-serif text-primary shrink-0">
+                                  <span className="text-lg font-serif text-white shrink-0">
                                     {bev.price}
                                   </span>
                                 </div>

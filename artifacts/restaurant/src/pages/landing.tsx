@@ -27,7 +27,7 @@ function HeroSection() {
     if (displayBanners.length <= 1) return;
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % displayBanners.length);
-    }, 3000);
+    }, 6000);
     return () => clearInterval(interval);
   }, [displayBanners.length]);
 
@@ -44,7 +44,7 @@ function HeroSection() {
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 1.2, ease: "easeInOut" }}
-          className="absolute inset-0"
+          className="absolute inset-0 will-change-[opacity,transform]"
         >
           <div className="absolute inset-0 bg-black/40 z-10" />
           <div className="absolute inset-0 gradient-overlay-bottom z-10" />
@@ -52,6 +52,7 @@ function HeroSection() {
             src={getImageUrl(displayBanners[currentIndex].imagePath)}
             alt={displayBanners[currentIndex].title || "Banner"}
             className="w-full h-full object-cover"
+            decoding="async"
           />
         </motion.div>
       </AnimatePresence>
@@ -149,6 +150,8 @@ function StorySection() {
               src={getImageUrl(fallbackGallery[2].imagePath)} 
               alt="Culinary artistry" 
               className="absolute inset-0 w-full h-full object-cover shadow-2xl"
+              loading="lazy"
+              decoding="async"
             />
           </motion.div>
         </div>
@@ -178,9 +181,11 @@ function OutletPickerCard({ outlet, index }: { outlet: any; index: number }) {
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-zinc-800">
         <img
-          src={getImageUrl(outlet.cardImagePath || outlet.coverImagePath)}
+          src={getImageUrl(outlet.cardImagePath || outlet.coverImagePath, 600)}
           alt={outlet.name}
           className="w-full h-full object-cover"
+          loading="lazy"
+          decoding="async"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
         <span className="absolute top-3 left-3 text-[10px] tracking-[0.2em] uppercase bg-primary/90 text-primary-foreground px-2.5 py-1 rounded-full">
@@ -253,7 +258,7 @@ function OutletsSection() {
 
   return (
     <section id="outlets" className="py-32 px-6 bg-zinc-950 text-white relative">
-      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[length:24px_24px] opacity-30 pointer-events-none" />
       <div className="container mx-auto relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -354,6 +359,8 @@ function HighlightGallerySection() {
               src={getImageUrl(img.imagePath)}
               alt={img.caption || "Gallery image"}
               className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+              loading="lazy"
+              decoding="async"
             />
           </motion.div>
         ))}

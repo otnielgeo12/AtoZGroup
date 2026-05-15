@@ -28,9 +28,11 @@ function OutletPickerCard({ outlet, index }: { outlet: any; index: number }) {
       {/* Image with badges */}
       <div className="relative aspect-[4/3] overflow-hidden bg-zinc-800">
         <img
-          src={getImageUrl(outlet.cardImagePath || outlet.coverImagePath)}
+          src={getImageUrl(outlet.cardImagePath || outlet.coverImagePath, 600)}
           alt={outlet.name}
           className="w-full h-full object-cover"
+          loading="lazy"
+          decoding="async"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
         <span className="absolute top-3 left-3 text-[10px] tracking-[0.2em] uppercase bg-primary/90 text-primary-foreground px-2.5 py-1 rounded-full">
@@ -104,7 +106,7 @@ export function Menu() {
 
   return (
     <div className="min-h-screen bg-zinc-950 pt-32 pb-24 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[length:24px_24px] opacity-30 pointer-events-none" />
 
       <div className="container mx-auto px-6 relative z-10">
         {/* Header */}

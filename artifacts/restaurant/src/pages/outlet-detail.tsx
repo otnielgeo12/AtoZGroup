@@ -67,6 +67,7 @@ export function OutletDetail() {
             src={getImageUrl(outlet.coverImagePath)} 
             alt={outlet.name}
             className="w-full h-full object-cover"
+            decoding="async"
           />
         </div>
         <div className="relative z-20 container mx-auto px-6 text-center text-white">
@@ -152,13 +153,13 @@ export function OutletDetail() {
           </div>
 
           {promosLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {[1, 2].map((i) => (
-                <Skeleton key={i} className="h-72 w-full bg-zinc-900" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="aspect-[9/16] w-full bg-zinc-900" />
               ))}
             </div>
           ) : promotions && promotions.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
               {promotions.map((promo, idx) => (
                 <motion.div
                   key={promo.id}
@@ -169,11 +170,13 @@ export function OutletDetail() {
                   className="group relative overflow-hidden border border-white/10 bg-zinc-900/40 rounded-sm flex flex-col"
                 >
                   {promo.imagePath && (
-                    <div className="relative h-56 overflow-hidden">
+                    <div className="relative aspect-[9/16] overflow-hidden">
                       <img
-                        src={getImageUrl(promo.imagePath)}
+                        src={getImageUrl(promo.imagePath, 800)}
                         alt={promo.title}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        loading="lazy"
+                        decoding="async"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 to-transparent" />
                       {promo.badge && (
