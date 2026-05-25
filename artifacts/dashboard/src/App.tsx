@@ -17,6 +17,8 @@ import OutletsPage from "./pages/outlets";
 import OutletDetailPage from "./pages/outlets/detail";
 import GalleryPage from "./pages/gallery";
 import SiteInfoPage from "./pages/site-info";
+import CrmPage from "./pages/crm/index";
+import CrmDetailPage from "./pages/crm/detail";
 import { Layout } from "./components/layout";
 import { RequireAuth, RedirectToSignIn } from "./components/auth-helpers";
 
@@ -108,6 +110,22 @@ function AppRouter() {
         <RequireAuth>
           <Layout>
             <SiteInfoPage />
+          </Layout>
+        </RequireAuth>
+      </Route>
+
+      <Route path="/crm">
+        <RequireAuth>
+          <Layout>
+            <CrmPage />
+          </Layout>
+        </RequireAuth>
+      </Route>
+
+      <Route path="/crm/:id">
+        <RequireAuth>
+          <Layout>
+            <CrmDetailPage />
           </Layout>
         </RequireAuth>
       </Route>

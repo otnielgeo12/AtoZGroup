@@ -56,6 +56,12 @@ export default defineConfig({
     host: "0.0.0.0",
     allowedHosts: true,
     proxy: {
+      // CRM dummy routes → local api-server (no DB needed, in-memory only)
+      "/api/v1/crm": {
+        target: "http://localhost:5000",
+        changeOrigin: true,
+      },
+      // All other API calls → production
       "/api": {
         target: "https://api.atozgroupsemarang.com",
         changeOrigin: true,

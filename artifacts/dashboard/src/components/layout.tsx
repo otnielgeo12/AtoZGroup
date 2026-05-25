@@ -7,7 +7,8 @@ import {
   Settings, 
   LogOut,
   Menu,
-  Images
+  Images,
+  Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -16,6 +17,7 @@ import { useState } from "react";
 
 const navItems = [
   { href: "/home", label: "Overview", icon: LayoutDashboard },
+  { href: "/crm", label: "CRM", icon: Users },
   { href: "/banners", label: "Banners", icon: ImageIcon },
   { href: "/outlets", label: "Outlets", icon: Store },
   { href: "/gallery", label: "Gallery", icon: Images },
