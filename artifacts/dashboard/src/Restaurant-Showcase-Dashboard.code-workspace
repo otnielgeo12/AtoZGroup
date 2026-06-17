@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "../../.."
+		},
+		{
+			"path": "../../../../api-server"
+		},
+		{
+			"path": "../../../../fnb-loyalty-app"
+		},
+		{
+			"path": "../../../../atoz-app"
+		},
+		{
+			"path": "../../../../api-server-vsoft"
+		}
+	],
+	"settings": {}
+}

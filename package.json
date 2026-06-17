@@ -1,21 +1,24 @@
 {
   "name": "workspace",
   "version": "0.0.0",
-
   "license": "MIT",
   "engines": {
     "node": ">=22.0.0"
   },
   "scripts": {
     "build": "npx --yes pnpm -r --if-present run build",
-    "postinstall": "npx --yes pnpm run build",
+    "postinstall": "echo skip postinstall",
     "start": "echo 'API server has been moved to /Users/mac/Documents/api-server — run pnpm start from there'",
     "typecheck:libs": "tsc --build",
     "typecheck": "npx --yes pnpm run typecheck:libs && npx --yes pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
   "private": true,
   "devDependencies": {
+    "@esbuild/darwin-arm64": "^0.27.3",
+    "@rollup/rollup-darwin-arm64": "^4.60.4",
+    "@tailwindcss/oxide-darwin-arm64": "4.3.0",
     "@types/node": "catalog:",
+    "lightningcss-darwin-arm64": "1.32.0",
     "prettier": "^3.8.1",
     "typescript": "~5.9.2"
   },
@@ -25,6 +28,10 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "@clerk/shared",
+      "esbuild"
+    ],
+    "approvedBuilds": [
+      "core-js",
       "esbuild"
     ]
   }

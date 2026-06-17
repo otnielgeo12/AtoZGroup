@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { useAuth, useUser, useClerk } from "@clerk/react";
+import { useAuth } from "@/lib/auth-context";
 import { 
   LayoutDashboard, 
   Image as ImageIcon, 
@@ -8,10 +8,13 @@ import {
   LogOut,
   Menu,
   Images,
-  Users
+  Users,
+  Shield,
+  UtensilsCrossed,
+  Music2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from "react";
 
@@ -22,38 +25,40 @@ const navItems = [
   { href: "/outlets", label: "Outlets", icon: Store },
   { href: "/gallery", label: "Gallery", icon: Images },
   { href: "/site-info", label: "Site Info", icon: Settings },
+  { href: "/users", label: "Admin Accounts", icon: Shield, superAdminOnly: true },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  const { user } = useUser();
-  const { signOut } = useClerk();
+  const { user, logout, isFnbAdmin, isEntertainmentAdmin } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
   const NavLinks = () => (
     <nav className="space-y-1">
-      {navItems.map((item) => {
-        const isActive = location.startsWith(item.href);
-        const Icon = item.icon;
-        
-        return (
-          <Link 
-            key={item.href} 
-            href={item.href} 
-            onClick={() => setMobileMenuOpen(false)}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
-              isActive 
-                ? "bg-primary/10 text-primary" 
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-            data-testid={`nav-${item.label.toLowerCase().replace(" ", "-")}`}
-          >
-            <Icon className="w-5 h-5" />
-            {item.label}
-          </Link>
-        );
-      })}
+      {navItems
+        .filter((item) => !item.superAdminOnly || user?.role === "super_admin")
+        .map((item) => {
+          const isActive = location.startsWith(item.href);
+          const Icon = item.icon;
+          
+          return (
+            <Link 
+              key={item.href} 
+              href={item.href} 
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                isActive 
+                  ? "bg-primary/10 text-primary" 
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+              data-testid={`nav-${item.label.toLowerCase().replace(" ", "-")}`}
+            >
+              <Icon className="w-5 h-5" />
+              {item.label}
+            </Link>
+          );
+        })}
     </nav>
   );
 
@@ -80,15 +85,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div className="mt-auto p-4 border-t border-border bg-card/50">
               <div className="flex items-center gap-3 mb-4 px-2">
                 <Avatar className="h-9 w-9 border border-border">
-                  <AvatarImage src={user?.imageUrl} />
-                  <AvatarFallback>{user?.firstName?.charAt(0) || "U"}</AvatarFallback>
+                  <AvatarFallback className="bg-primary/20 text-primary font-bold">
+                    {user?.username?.substring(0, 2).toUpperCase() || "AD"}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 overflow-hidden">
-                  <p className="text-sm font-medium truncate">{user?.fullName || "User"}</p>
-                  <p className="text-xs text-muted-foreground truncate">{user?.primaryEmailAddress?.emailAddress}</p>
+                  <p className="text-sm font-medium truncate">{user?.username || "Admin"}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {isFnbAdmin ? (
+                      <span className="inline-flex items-center gap-1 text-orange-500"><UtensilsCrossed className="w-3 h-3" /> F&B Group</span>
+                    ) : isEntertainmentAdmin ? (
+                      <span className="inline-flex items-center gap-1 text-purple-500"><Music2 className="w-3 h-3" /> Entertainment Group</span>
+                    ) : (
+                      user?.email || "System Admin"
+                    )}
+                  </p>
                 </div>
               </div>
-              <Button variant="outline" className="w-full justify-start text-muted-foreground" onClick={() => signOut()}>
+              <Button variant="outline" className="w-full justify-start text-muted-foreground" onClick={() => logout()}>
                 <LogOut className="w-4 h-4 mr-2" />
                 Sign out
               </Button>
@@ -110,18 +124,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="mt-auto p-4 border-t border-sidebar-border bg-sidebar/50">
           <div className="flex items-center gap-3 mb-4 px-2">
             <Avatar className="h-9 w-9 border border-sidebar-border">
-              <AvatarImage src={user?.imageUrl} />
-              <AvatarFallback>{user?.firstName?.charAt(0) || "U"}</AvatarFallback>
+              <AvatarFallback className="bg-primary/20 text-primary font-bold">
+                {user?.username?.substring(0, 2).toUpperCase() || "AD"}
+              </AvatarFallback>
             </Avatar>
             <div className="flex-1 overflow-hidden">
-              <p className="text-sm font-medium text-sidebar-foreground truncate">{user?.fullName || "User"}</p>
-              <p className="text-xs text-sidebar-foreground/70 truncate">{user?.primaryEmailAddress?.emailAddress}</p>
+              <p className="text-sm font-medium text-sidebar-foreground truncate">{user?.username || "Admin"}</p>
+              <p className="text-xs text-sidebar-foreground/70 truncate">
+                {isFnbAdmin ? (
+                  <span className="inline-flex items-center gap-1 text-orange-400"><UtensilsCrossed className="w-3 h-3" /> F&B Group</span>
+                ) : isEntertainmentAdmin ? (
+                  <span className="inline-flex items-center gap-1 text-purple-400"><Music2 className="w-3 h-3" /> Entertainment Group</span>
+                ) : (
+                  user?.email || "System Admin"
+                )}
+              </p>
             </div>
           </div>
           <Button 
             variant="ghost" 
             className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent" 
-            onClick={() => signOut()}
+            onClick={() => logout()}
             data-testid="button-sign-out"
           >
             <LogOut className="w-4 h-4 mr-2" />

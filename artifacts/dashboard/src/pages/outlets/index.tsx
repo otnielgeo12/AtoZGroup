@@ -1,19 +1,23 @@
 import { useListOutlets } from "@workspace/api-client-react";
 import { Link } from "wouter";
-import { Store, MapPin, Clock, Utensils, Phone, ArrowRight } from "lucide-react";
+import { Store, MapPin, Clock, Utensils, Phone, ArrowRight, UtensilsCrossed, Music2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getImageUrl } from "@/lib/assets";
+import { useAuth } from "@/lib/auth-context";
+
+// F&B group: AtoZ Bar Wine & Brasserie (1), Bosa Restaurant (2), Bodega All Day Dining (3), Lakers By AtoZ (4)
+const FNB_OUTLET_IDS = new Set([1, 2, 3, 4]);
+// Entertainment group: Redhare (5), District5 (6), Infinity (7), Oombee (8), Shiraz (9)
+const ENTERTAINMENT_OUTLET_IDS = new Set([5, 6, 7, 8, 9]);
 
 export default function OutletsPage() {
   const { data: outlets, isLoading } = useListOutlets();
-  
-  // Detektif tetap berjalan
-  console.log("ISI ASLI OUTLETS:", outlets);
+  const { isSuperAdmin, isFnbAdmin, isEntertainmentAdmin } = useAuth();
 
   const safeOutlets: any = outlets;
   
-  const outletsData = Array.isArray(safeOutlets) 
+  const allOutlets: any[] = Array.isArray(safeOutlets) 
     ? safeOutlets 
     : Array.isArray(safeOutlets?.data) 
       ? safeOutlets.data 
@@ -21,12 +25,38 @@ export default function OutletsPage() {
         ? safeOutlets.items 
         : [];
 
+  // Filter based on admin group
+  const outletsData = isSuperAdmin
+    ? allOutlets
+    : isFnbAdmin
+      ? allOutlets.filter((o: any) => FNB_OUTLET_IDS.has(o.id))
+      : isEntertainmentAdmin
+        ? allOutlets.filter((o: any) => ENTERTAINMENT_OUTLET_IDS.has(o.id))
+        : allOutlets; // legacy 'admin' role sees all
+
+  const groupLabel = isFnbAdmin
+    ? "F&B"
+    : isEntertainmentAdmin
+      ? "Entertainment"
+      : null;
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Outlets</h1>
-          {/* Angka 9-nya kita buat dinamis sesuai jumlah data asli! */}
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold tracking-tight">Outlets</h1>
+            {groupLabel && (
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                isFnbAdmin
+                  ? "bg-orange-500/10 text-orange-500 border-orange-500/25"
+                  : "bg-purple-500/10 text-purple-500 border-purple-500/25"
+              }`}>
+                {isFnbAdmin ? <UtensilsCrossed className="w-3 h-3" /> : <Music2 className="w-3 h-3" />}
+                {groupLabel} Group
+              </span>
+            )}
+          </div>
           <p className="text-muted-foreground mt-1">
             Manage locations, details, and menus for {outletsData.length > 0 ? `all ${outletsData.length}` : 'your'} outlets.
           </p>

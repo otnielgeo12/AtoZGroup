@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@clerk/react";
+import { useAuth } from "@/lib/auth-context";
 import { useParams, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,8 +8,8 @@ import { z } from "zod";
 import { format } from "date-fns";
 import {
   ArrowLeft, Users, Phone, Mail, Crown, UserCheck, UserPlus,
-  Wallet, UtensilsCrossed, Sofa, CalendarDays, Pencil, Music,
-  CheckCircle2, XCircle, AlertCircle,
+  Coins, MapPin, Pencil, Music,
+  CheckCircle2, XCircle, AlertCircle, CalendarDays,
 } from "lucide-react";
 
 import {
@@ -30,10 +30,6 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -48,7 +44,7 @@ const STATUS_CONFIG: Record<CustomerStatus, { className: string; icon: React.Rea
 };
 
 function StatusBadge({ status }: { status: CustomerStatus }) {
-  const cfg = STATUS_CONFIG[status];
+  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.Regular;
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${cfg.className}`}>
       {cfg.icon}{status}
@@ -65,12 +61,13 @@ const RESERVATION_STATUS_ICON: Record<string, React.ReactNode> = {
 // ─── Edit form schema ──────────────────────────────────────────────────────────
 
 const editSchema = z.object({
-  fullName: z.string().min(1, "Required"),
-  phone: z.string().min(1, "Required"),
-  email: z.string().email("Invalid email").or(z.literal("")).optional(),
-  status: z.enum(["VIP", "Regular", "New"]),
-  seatingPreference: z.enum(["Regular", "Bar", "Smoking Area", "VIP Room"]),
-  notes: z.string().optional(),
+  firstName: z.string().min(1, "First Name is required"),
+  lastName:  z.string().optional(),
+  phone:     z.string().min(1, "Phone is required"),
+  email:     z.string().email("Invalid email").or(z.literal("")).optional(),
+  address:   z.string().optional(),
+  city:      z.string().optional(),
+  province:  z.string().optional(),
 });
 type EditFormValues = z.infer<typeof editSchema>;
 
@@ -84,7 +81,7 @@ function MetricCard({ icon, label, value, sub }: { icon: React.ReactNode; label:
         <div className="min-w-0">
           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{label}</p>
           <p className="text-xl font-bold mt-0.5 truncate">{value}</p>
-          {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
+          {sub && <p className="text-xs text-muted-foreground mt-0.5 truncate">{sub}</p>}
         </div>
       </CardContent>
     </Card>
@@ -106,8 +103,7 @@ function DetailSkeleton() {
 // ─── Main page ─────────────────────────────────────────────────────────────────
 
 export default function CrmDetailPage() {
-  const { id: rawId } = useParams<{ id: string }>();
-  const id = parseInt(rawId || "0", 10);
+  const { id = "" } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { getToken } = useAuth();
   const { toast } = useToast();
@@ -117,13 +113,13 @@ export default function CrmDetailPage() {
   const { data: customer, isLoading, isError } = useQuery({
     queryKey: crmKeys.detail(id),
     queryFn: () => getCustomer(id, getToken),
-    enabled: !!id && !isNaN(id),
+    enabled: !!id,
   });
 
   const updateMutation = useMutation({
     mutationFn: (body: EditFormValues) => updateCustomer(id, body, getToken),
-    onSuccess: (updated) => {
-      queryClient.setQueryData(crmKeys.detail(id), updated);
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: crmKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: crmKeys.lists() });
       setEditOpen(false);
       toast({ title: "Customer updated successfully" });
@@ -135,18 +131,24 @@ export default function CrmDetailPage() {
 
   const form = useForm<EditFormValues>({
     resolver: zodResolver(editSchema),
-    defaultValues: { fullName: "", phone: "", email: "", status: "New", seatingPreference: "Regular", notes: "" },
+    defaultValues: { firstName: "", lastName: "", phone: "", email: "", address: "", city: "", province: "" },
   });
 
   const openEdit = (c: CustomerDetail) => {
+    const parts = c.fullName.split(" ");
     form.reset({
-      fullName: c.fullName, phone: c.phone, email: c.email || "",
-      status: c.status, seatingPreference: c.seatingPreference, notes: c.notes || "",
+      firstName: parts[0] || "",
+      lastName: parts.slice(1).join(" "),
+      phone: c.phone,
+      email: c.email || "",
+      address: c.address || "",
+      city: c.city || "",
+      province: c.province || "",
     });
     setEditOpen(true);
   };
 
-  if (isNaN(id)) {
+  if (!id) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
         <Users className="h-12 w-12 text-muted-foreground opacity-20 mb-4" />
@@ -168,10 +170,6 @@ export default function CrmDetailPage() {
     );
   }
 
-  const totalSpendingFormatted = new Intl.NumberFormat("id-ID", {
-    style: "currency", currency: "IDR", minimumFractionDigits: 0,
-  }).format(customer.totalSpending);
-
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* ── Header ── */}
@@ -189,7 +187,7 @@ export default function CrmDetailPage() {
               <h1 className="text-2xl font-bold tracking-tight">{customer.fullName}</h1>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <StatusBadge status={customer.status} />
-                <span className="text-xs text-muted-foreground">Member since {format(new Date(customer.memberSince), "MMMM yyyy")}</span>
+                <span className="text-xs font-mono text-muted-foreground">Code: {customer.id}</span>
               </div>
             </div>
           </div>
@@ -202,26 +200,27 @@ export default function CrmDetailPage() {
       {/* ── Metric Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
-          icon={<Wallet className="w-5 h-5 text-primary" />}
-          label="Total Spending"
-          value={totalSpendingFormatted}
-          sub={`across ${customer.totalVisits} visits`}
+          icon={<Coins className="w-5 h-5 text-emerald-600" />}
+          label="Point Balance"
+          value={customer.pointBalance.toLocaleString("id-ID")}
+          sub="Loyalty points"
         />
         <MetricCard
-          icon={<CalendarDays className="w-5 h-5 text-primary" />}
-          label="Total Visits"
-          value={String(customer.totalVisits)}
-          sub={`Last: ${format(new Date(customer.lastVisitDate), "dd MMM yyyy")}`}
+          icon={<MapPin className="w-5 h-5 text-primary" />}
+          label="Location"
+          value={customer.city || "—"}
+          sub={customer.province || "—"}
         />
         <MetricCard
-          icon={<UtensilsCrossed className="w-5 h-5 text-primary" />}
-          label="Favourite Menu"
-          value={customer.favoriteMenuCategory}
+          icon={<Phone className="w-5 h-5 text-primary" />}
+          label="Contact"
+          value={customer.phone}
+          sub="Primary Phone"
         />
         <MetricCard
-          icon={<Sofa className="w-5 h-5 text-primary" />}
-          label="Seating Preference"
-          value={customer.seatingPreference}
+          icon={<Mail className="w-5 h-5 text-primary" />}
+          label="Email"
+          value={customer.email || "—"}
         />
       </div>
 
@@ -237,11 +236,19 @@ export default function CrmDetailPage() {
         <TabsContent value="profile" className="outline-none">
           <Card>
             <CardHeader>
-              <CardTitle>Contact Information</CardTitle>
-              <CardDescription>Personal details and staff notes for this guest.</CardDescription>
+              <CardTitle>Detailed Information</CardTitle>
+              <CardDescription>Customer profile information mapped from Vsoft API.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Customer Code</p>
+                  <p className="font-mono text-sm">{customer.id}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Full Name</p>
+                  <p className="font-medium">{customer.fullName}</p>
+                </div>
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Phone / WhatsApp</p>
                   <p className="flex items-center gap-2 font-medium"><Phone className="w-4 h-4 text-muted-foreground" />{customer.phone}</p>
@@ -251,23 +258,36 @@ export default function CrmDetailPage() {
                   <p className="flex items-center gap-2 font-medium"><Mail className="w-4 h-4 text-muted-foreground" />{customer.email || "—"}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Membership Status</p>
-                  <StatusBadge status={customer.status} />
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Gender</p>
+                  <p className="font-medium">{customer.gender || "—"}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Member Since</p>
-                  <p className="font-medium">{format(new Date(customer.memberSince), "dd MMMM yyyy")}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Date of Birth</p>
+                  <p className="font-medium">{customer.birthDate || "—"}</p>
                 </div>
               </div>
 
-              {customer.notes && (
-                <div className="pt-4 border-t border-border">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-2">Staff Notes</p>
-                  <div className="p-3 bg-muted/40 rounded-md text-sm leading-relaxed border border-border/60">
-                    {customer.notes}
+              <div className="pt-4 border-t border-border">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-3">Address</p>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-1 sm:col-span-3">
+                    <p className="text-xs text-muted-foreground">Street</p>
+                    <p className="font-medium">{customer.address || "—"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">City</p>
+                    <p className="font-medium">{customer.city || "—"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Province</p>
+                    <p className="font-medium">{customer.province || "—"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Nationality</p>
+                    <p className="font-medium">{customer.nationality || "—"}</p>
                   </div>
                 </div>
-              )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -280,39 +300,10 @@ export default function CrmDetailPage() {
               <CardDescription>Special events and private bookings this guest has attended.</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
-              {customer.events.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                  <Music className="w-10 h-10 opacity-20 mb-3" />
-                  <p className="font-medium">No events recorded yet.</p>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="pl-4">Event</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Outlet</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="pr-4">Notes</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {customer.events.map((ev) => (
-                      <TableRow key={ev.id}>
-                        <TableCell className="pl-4 font-medium">{ev.eventName}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className="text-xs">{ev.eventType}</Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{ev.outlet}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {format(new Date(ev.date), "dd MMM yyyy")}
-                        </TableCell>
-                        <TableCell className="pr-4 text-sm text-muted-foreground">{ev.notes || "—"}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <Music className="w-10 h-10 opacity-20 mb-3" />
+                <p className="font-medium">Not supported in Vsoft API.</p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -325,47 +316,10 @@ export default function CrmDetailPage() {
               <CardDescription>All past table reservation records for this guest.</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
-              {customer.reservations.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                  <CalendarDays className="w-10 h-10 opacity-20 mb-3" />
-                  <p className="font-medium">No reservations recorded yet.</p>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="pl-4">Date & Time</TableHead>
-                      <TableHead>Outlet</TableHead>
-                      <TableHead>Table</TableHead>
-                      <TableHead className="text-right">Pax</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="pr-4">Notes</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {customer.reservations.map((res) => (
-                      <TableRow key={res.id}>
-                        <TableCell className="pl-4">
-                          <p className="font-medium text-sm">{format(new Date(res.date), "dd MMM yyyy")}</p>
-                          <p className="text-xs text-muted-foreground">{res.time}</p>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{res.outlet}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs font-mono">{res.tableLabel}</Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-medium text-sm">{res.pax}</TableCell>
-                        <TableCell>
-                          <span className="flex items-center gap-1.5 text-sm">
-                            {RESERVATION_STATUS_ICON[res.status]}
-                            {res.status}
-                          </span>
-                        </TableCell>
-                        <TableCell className="pr-4 text-sm text-muted-foreground">{res.notes || "—"}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <CalendarDays className="w-10 h-10 opacity-20 mb-3" />
+                <p className="font-medium">Not supported in Vsoft API.</p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -381,10 +335,17 @@ export default function CrmDetailPage() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit((data) => updateMutation.mutate(data))} className="space-y-4 mt-2">
               <div className="grid gap-4 sm:grid-cols-2">
-                <FormField control={form.control} name="fullName" render={({ field }) => (
-                  <FormItem className="sm:col-span-2">
-                    <FormLabel>Full Name</FormLabel>
+                <FormField control={form.control} name="firstName" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>First Name</FormLabel>
                     <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="lastName" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Last Name</FormLabel>
+                    <FormControl><Input {...field} value={field.value ?? ""} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -402,41 +363,24 @@ export default function CrmDetailPage() {
                     <FormMessage />
                   </FormItem>
                 )} />
-                <FormField control={form.control} name="status" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        <SelectItem value="New">New</SelectItem>
-                        <SelectItem value="Regular">Regular</SelectItem>
-                        <SelectItem value="VIP">VIP</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="seatingPreference" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Seating Preference</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        <SelectItem value="Regular">Regular</SelectItem>
-                        <SelectItem value="Bar">Bar</SelectItem>
-                        <SelectItem value="Smoking Area">Smoking Area</SelectItem>
-                        <SelectItem value="VIP Room">VIP Room</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="notes" render={({ field }) => (
+                <FormField control={form.control} name="address" render={({ field }) => (
                   <FormItem className="sm:col-span-2">
-                    <FormLabel>Staff Notes</FormLabel>
-                    <FormControl>
-                      <Textarea className="min-h-[80px]" {...field} value={field.value ?? ""} />
-                    </FormControl>
+                    <FormLabel>Address</FormLabel>
+                    <FormControl><Input {...field} value={field.value ?? ""} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="city" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>City</FormLabel>
+                    <FormControl><Input {...field} value={field.value ?? ""} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="province" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Province</FormLabel>
+                    <FormControl><Input {...field} value={field.value ?? ""} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />

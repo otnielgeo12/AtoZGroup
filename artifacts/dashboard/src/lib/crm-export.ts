@@ -1,15 +1,8 @@
 /**
- * CRM Export Service
+ * CRM Export Service — Vsoft Edition
  *
  * Handles client-side generation of Excel (.xlsx) and PDF reports
  * from customer data that is already fetched in the TanStack Query cache.
- *
- * Pattern: same as server-side blob handling — we create a Blob, build
- * an object URL, trigger a programmatic <a> click, then revoke the URL.
- * When the real server returns a binary response, replace the generation
- * block with:
- *   const blob = await response.blob();
- * Everything below that line stays identical.
  */
 
 import * as XLSX from "xlsx";
@@ -39,16 +32,18 @@ function triggerDownload(blob: Blob, filename: string): void {
 
 function toRows(customers: CustomerListItem[]) {
   return customers.map((c) => ({
-    "Full Name":          c.fullName,
-    "Phone":              c.phone,
-    "Email":              c.email || "—",
-    "Status":             c.status,
-    "Outlet":             c.primaryOutletName,
-    "Food Preferences":   c.foodPreferences.join(", ") || "—",
-    "Bev. Preferences":   c.beveragePreferences.join(", ") || "—",
-    "Total Visits":       c.totalVisits,
-    "Total Spending (Rp)": c.totalSpending.toLocaleString("id-ID"),
-    "Last Visit":         format(new Date(c.lastVisitDate), "dd MMM yyyy"),
+    "Code":           c.id,
+    "Full Name":      c.fullName,
+    "Phone":          c.phone,
+    "Email":          c.email || "—",
+    "Category":       c.categoryName || "—",
+    "Outlet":         c.primaryOutletName || "All Outlets",
+    "Location":       [c.city, c.province].filter(Boolean).join(", ") || c.address || "—",
+    "Food Prefs":     c.foodPreferences.length > 0 ? c.foodPreferences.join(", ") : "—",
+    "Beverage Prefs": c.beveragePreferences.length > 0 ? c.beveragePreferences.join(", ") : "—",
+    "Spending":       c.totalSpending > 0 ? c.totalSpending : "—",
+    "Visits":         c.totalVisits > 0 ? c.totalVisits : "—",
+    "Points":         c.pointBalance,
   }));
 }
 
@@ -67,7 +62,6 @@ export function downloadExcel(customers: CustomerListItem[], filenameBase = "crm
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Customers");
 
-  // writeFile uses a Blob internally; we use write() for explicit Blob control
   const xlsxBuffer: ArrayBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
   const blob = new Blob([xlsxBuffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -89,7 +83,7 @@ export function downloadPdf(customers: CustomerListItem[], filenameBase = "crm-c
   doc.setTextColor(255, 245, 220);
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text("Spice Admin — CRM Customer Report", 14, 13);
+  doc.text("AtoZ Group — CRM Customer Report", 14, 13);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.text(`Generated: ${now}  |  Total records: ${customers.length}`, 14, 19);
@@ -113,11 +107,15 @@ export function downloadPdf(customers: CustomerListItem[], filenameBase = "crm-c
     },
     alternateRowStyles: { fillColor: [252, 249, 245] },
     columnStyles: {
-      0: { cellWidth: 36 },
-      1: { cellWidth: 28 },
-      2: { cellWidth: 40 },
-      7: { cellWidth: 18, halign: "center" },
-      9: { cellWidth: 24 },
+      0: { cellWidth: 16 },  // Code
+      1: { cellWidth: 32 },  // Name
+      2: { cellWidth: 24 },  // Phone
+      3: { cellWidth: 32 },  // Email
+      4: { cellWidth: 18 },  // Category
+      5: { cellWidth: 30 },  // Outlet
+      6: { cellWidth: 24 },  // Location
+      7: { cellWidth: 18, halign: "right" }, // Spending
+      8: { cellWidth: 14, halign: "right" }, // Points
     },
   });
 
@@ -134,7 +132,7 @@ export function downloadPdf(customers: CustomerListItem[], filenameBase = "crm-c
     );
   }
 
-  const pdfBlob = doc.output("blob"); // returns a Blob with type application/pdf
+  const pdfBlob = doc.output("blob");
   const timestamp = format(new Date(), "yyyyMMdd_HHmm");
   triggerDownload(pdfBlob, `${filenameBase}_${timestamp}.pdf`);
 }

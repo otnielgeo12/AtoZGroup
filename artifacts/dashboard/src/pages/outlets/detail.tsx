@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "@/lib/auth-context";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -120,16 +121,28 @@ const promotionSchema = z.object({
 
 type PromotionFormValues = z.infer<typeof promotionSchema>;
 
+// F&B group outlet IDs: AtoZ Bar (1), Bosa (2), Bodega (3), Lakers (4)
+const FNB_OUTLET_IDS = new Set([1, 2, 3, 4]);
+// Entertainment group outlet IDs: Redhare (5), District5 (6), Infinity (7), Oombee (8), Shiraz (9)
+const ENTERTAINMENT_OUTLET_IDS = new Set([5, 6, 7, 8, 9]);
+
 export default function OutletDetailPage() {
   const params = useParams<{ id: string }>();
   const id = parseInt(params.id || "0", 10);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { isFnbAdmin, isEntertainmentAdmin } = useAuth();
+
+  // Access guard: check if this admin group can access this outlet
+  const isAccessDenied = !isNaN(id) && (
+    (isFnbAdmin && ENTERTAINMENT_OUTLET_IDS.has(id)) ||
+    (isEntertainmentAdmin && FNB_OUTLET_IDS.has(id))
+  );
 
   const { data: outlet, isLoading: isOutletLoading } = useGetOutlet(id, { 
     query: { 
-      enabled: !!id && !isNaN(id), 
+      enabled: !!id && !isNaN(id) && !isAccessDenied, 
       queryKey: getGetOutletQueryKey(id) 
     } 
   });
@@ -489,6 +502,19 @@ export default function OutletDetailPage() {
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
         <Store className="h-12 w-12 text-muted-foreground opacity-20 mb-4" />
         <h2 className="text-xl font-medium">Invalid Outlet ID</h2>
+        <Button variant="link" onClick={() => setLocation("/outlets")} className="mt-2">
+          Back to outlets
+        </Button>
+      </div>
+    );
+  }
+
+  if (isAccessDenied) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+        <Store className="h-12 w-12 text-muted-foreground opacity-20 mb-4" />
+        <h2 className="text-xl font-medium">Access Denied</h2>
+        <p className="text-muted-foreground mt-1">You don't have permission to view this outlet.</p>
         <Button variant="link" onClick={() => setLocation("/outlets")} className="mt-2">
           Back to outlets
         </Button>

@@ -1,23 +1,24 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@clerk/react";
+import { useAuth } from "@/lib/auth-context";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   Users, Plus, Download, FileSpreadsheet, FileText,
-  Crown, UserCheck, UserPlus, Loader2,
+  Crown, UserCheck, UserPlus, Loader2, MessageCircle,
 } from "lucide-react";
 
 import {
-  listCustomers, listOutlets, createCustomer, updateCustomer, deleteCustomer,
-  crmKeys,
+  listCustomers, listOutlets, listCategories, createCustomer, updateCustomer,
+  countCustomers, fetchCustomerInsights, mergeInsightsIntoMembers, mapInsightToListItem, crmKeys,
   type CustomerListItem, type CustomerStatus, type CreateCustomerBody,
 } from "@/lib/crm-api";
 import { downloadExcel, downloadPdf } from "@/lib/crm-export";
 import { FilterBar, EMPTY_FILTERS, type FilterState } from "./components/FilterBar";
 import { CustomerTable } from "./components/CustomerTable";
+import { WhatsAppModal } from "./components/WhatsAppModal";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,29 +32,21 @@ import {
   DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 
 // ─── Form schema ──────────────────────────────────────────────────────────────
 
 const customerSchema = z.object({
-  fullName:         z.string().min(1, "Full name is required"),
+  firstName:        z.string().min(1, "First name is required"),
+  lastName:         z.string().optional(),
   phone:            z.string().min(1, "Phone number is required"),
   email:            z.string().email("Invalid email").or(z.literal("")).optional(),
-  status:           z.enum(["VIP", "Regular", "New"]).default("New"),
-  seatingPreference: z.enum(["Regular", "Bar", "Smoking Area", "VIP Room"]).default("Regular"),
-  primaryOutletId:  z.string().optional(),
-  notes:            z.string().optional(),
+  address:          z.string().optional(),
+  city:             z.string().optional(),
+  province:         z.string().optional(),
 });
 type CustomerFormValues = z.infer<typeof customerSchema>;
 
@@ -65,7 +58,7 @@ const STAT_CONFIG: Record<CustomerStatus, { label: string; icon: React.ReactNode
   New:     { label: "New Guests",    icon: <UserPlus  className="w-4 h-4" />, color: "text-emerald-600" },
 };
 
-function SummaryCards({ customers, isLoading }: { customers?: CustomerListItem[]; isLoading: boolean }) {
+function SummaryCards({ total, isLoading, isCounting }: { total: number; isLoading: boolean; isCounting?: boolean }) {
   if (isLoading) return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {Array.from({ length: 4 }).map((_, i) => (
@@ -73,16 +66,12 @@ function SummaryCards({ customers, isLoading }: { customers?: CustomerListItem[]
       ))}
     </div>
   );
-  if (!customers) return null;
-
-  const counts = { VIP: 0, Regular: 0, New: 0 };
-  customers.forEach((c) => counts[c.status]++);
 
   const cards = [
-    { label: "Total",      value: customers.length, icon: <Users className="w-4 h-4" />, color: "text-foreground" },
-    ...Object.entries(STAT_CONFIG).map(([status, cfg]) => ({
-      label: cfg.label, value: counts[status as CustomerStatus], icon: cfg.icon, color: cfg.color,
-    })),
+    { label: "Total",      value: total, icon: <Users className="w-4 h-4" />, color: "text-foreground" },
+    { label: "VIP Members", value: 0, icon: <Crown className="w-4 h-4" />, color: "text-amber-600" },
+    { label: "Regular",     value: total, icon: <UserCheck className="w-4 h-4" />, color: "text-blue-600" },
+    { label: "New Guests",  value: 0, icon: <UserPlus className="w-4 h-4" />, color: "text-emerald-600" },
   ];
 
   return (
@@ -93,7 +82,13 @@ function SummaryCards({ customers, isLoading }: { customers?: CustomerListItem[]
             <div className={`p-2 rounded-lg bg-muted/60 ${c.color} shrink-0`}>{c.icon}</div>
             <div>
               <p className="text-xs text-muted-foreground font-medium">{c.label}</p>
-              <p className={`text-2xl font-bold ${c.color}`}>{c.value}</p>
+              <p className={`text-2xl font-bold ${c.color}`}>
+                {isCounting && c.label === "Total" ? (
+                  <span className="text-sm font-medium animate-pulse text-muted-foreground">Counting...</span>
+                ) : (
+                  c.value
+                )}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -105,22 +100,28 @@ function SummaryCards({ customers, isLoading }: { customers?: CustomerListItem[]
 // ─── Customer form ─────────────────────────────────────────────────────────────
 
 function CustomerForm({
-  form, onSubmit, isPending, onCancel, outlets,
+  form, onSubmit, isPending, onCancel,
 }: {
   form: ReturnType<typeof useForm<CustomerFormValues>>;
   onSubmit: (d: CustomerFormValues) => void;
   isPending: boolean;
   onCancel: () => void;
-  outlets: { id: string; name: string }[];
 }) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-2">
         <div className="grid gap-4 sm:grid-cols-2">
-          <FormField control={form.control} name="fullName" render={({ field }) => (
-            <FormItem className="sm:col-span-2">
-              <FormLabel>Full Name</FormLabel>
-              <FormControl><Input placeholder="e.g. Anastasia Wijaya" {...field} /></FormControl>
+          <FormField control={form.control} name="firstName" render={({ field }) => (
+            <FormItem>
+              <FormLabel>First Name</FormLabel>
+              <FormControl><Input placeholder="e.g. Anastasia" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="lastName" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Last Name</FormLabel>
+              <FormControl><Input placeholder="e.g. Wijaya" {...field} value={field.value ?? ""} /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
@@ -138,53 +139,24 @@ function CustomerForm({
               <FormMessage />
             </FormItem>
           )} />
-          <FormField control={form.control} name="status" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Status</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                <SelectContent>
-                  <SelectItem value="New">New</SelectItem>
-                  <SelectItem value="Regular">Regular</SelectItem>
-                  <SelectItem value="VIP">VIP</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )} />
-          <FormField control={form.control} name="seatingPreference" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Seating Preference</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                <SelectContent>
-                  <SelectItem value="Regular">Regular</SelectItem>
-                  <SelectItem value="Bar">Bar</SelectItem>
-                  <SelectItem value="Smoking Area">Smoking Area</SelectItem>
-                  <SelectItem value="VIP Room">VIP Room</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )} />
-          <FormField control={form.control} name="primaryOutletId" render={({ field }) => (
+          <FormField control={form.control} name="address" render={({ field }) => (
             <FormItem className="sm:col-span-2">
-              <FormLabel>Primary Outlet</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                <FormControl><SelectTrigger><SelectValue placeholder="Select outlet" /></SelectTrigger></FormControl>
-                <SelectContent>
-                  {outlets.map((o) => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <FormLabel>Address</FormLabel>
+              <FormControl><Input placeholder="Full address" {...field} value={field.value ?? ""} /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
-          <FormField control={form.control} name="notes" render={({ field }) => (
-            <FormItem className="sm:col-span-2">
-              <FormLabel>Notes</FormLabel>
-              <FormControl>
-                <Textarea placeholder="Allergies, preferences, special requirements…" className="min-h-[72px]" {...field} value={field.value ?? ""} />
-              </FormControl>
+          <FormField control={form.control} name="city" render={({ field }) => (
+            <FormItem>
+              <FormLabel>City</FormLabel>
+              <FormControl><Input placeholder="e.g. Semarang" {...field} value={field.value ?? ""} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={form.control} name="province" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Province</FormLabel>
+              <FormControl><Input placeholder="e.g. Jawa Tengah" {...field} value={field.value ?? ""} /></FormControl>
               <FormMessage />
             </FormItem>
           )} />
@@ -219,30 +191,154 @@ export default function CrmPage() {
   // ── Dialog state ──────────────────────────────────────────────────────────
   const [isCreateOpen, setIsCreateOpen]       = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<CustomerListItem | null>(null);
-  const [deletingCustomer, setDeletingCustomer] = useState<CustomerListItem | null>(null);
 
   // ── Export state ──────────────────────────────────────────────────────────
   const [isExporting, setIsExporting] = useState(false);
 
+  // ── WhatsApp selection state ──────────────────────────────────────────────
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isWAModalOpen, setIsWAModalOpen] = useState(false);
+
+  const handleToggle = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleToggleAll = useCallback((ids: string[], checked: boolean) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (checked) ids.forEach(id => next.add(id));
+      else ids.forEach(id => next.delete(id));
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
   // ── Queries ───────────────────────────────────────────────────────────────
+  const apiTake = pageSize;
+  const apiSkip = (page - 1) * pageSize;
+
   const queryParams = {
     search:    filters.search || undefined,
-    status:    undefined as any,
-    outlet_id: filters.outletId || undefined,
-    food_pref: filters.foodPrefs.length ? filters.foodPrefs : undefined,
-    bev_pref:  filters.bevPrefs.length  ? filters.bevPrefs  : undefined,
+    category:  filters.category || undefined,
+    outletId:  filters.outletId || undefined,
+    take:      apiTake,
+    skip:      apiSkip,
   };
 
-  const { data: customers, isLoading, isError } = useQuery({
+  const { data: apiCustomers, isLoading, isError } = useQuery({
     queryKey: crmKeys.list(queryParams),
     queryFn:  () => listCustomers(queryParams, getToken),
   });
 
+  const { data: totalCustomers, isLoading: isCounting, isError: isCountingError } = useQuery({
+    queryKey: ["crm", "count", filters.search, filters.category, filters.outletId],
+    queryFn: async () => {
+      // Instead of counting, we can try to fetch with a high but safe limit like 5000 
+      // or rely on a separate count logic if the API provides it.
+      // But Vsoft doesn't provide a count endpoint, so let's fallback to the binary search count method
+      const count = await countCustomers(filters.search || "", filters.category, filters.outletId, apiCustomers?.length || 0, apiSkip, apiTake);
+      return count;
+    },
+    enabled: !!apiCustomers, // only run after we have the first page
+    retry: 1, // only retry once to avoid spamming the API
+  });
+
+  // If error, we don't know the exact total, so we fallback to 6500 to allow navigation
+  const totalCount = isCountingError ? 6500 : (totalCustomers ?? (apiCustomers?.length || 0));
+  const isPageLoading = isLoading;
+
+  const customers = apiCustomers || [];
+
+  // ── Outlets + Categories (needed for filter dropdowns and outlet name resolution)
   const { data: outlets = [] } = useQuery({
     queryKey: crmKeys.outlets(),
     queryFn:  () => listOutlets(getToken),
     staleTime: Infinity,
   });
+
+  // Build outlet code -> name map for resolving insight outlet codes
+  const outletMap = useMemo(
+    () => new Map(outlets.map(o => [o.id, o.name])),
+    [outlets],
+  );
+
+  const { data: rawCategories = [] } = useQuery({
+    queryKey: crmKeys.categories(),
+    queryFn:  () => listCategories(getToken),
+    staleTime: Infinity,
+  });
+
+  // Deduplicate categories by sub_code so we can filter by specific preferences like APPETIZERS or TEA
+  const safeCategories = Array.isArray(rawCategories) ? rawCategories : [];
+  const categories = Array.from(
+    new Map(
+      safeCategories
+        .filter(c => c.sub_code) // ensure sub_code exists
+        .map(c => [c.sub_code, c])
+    ).values()
+  ).sort((a, b) => a.sub_name.localeCompare(b.sub_name)); // sort alphabetically
+
+  // ── Insights query (enrichment via customerInsights endpoint) ──────────────
+  // Default: fetch last 1 month of insights automatically.
+  // When user sets specific dates in filter, use those instead.
+  const hasUserDates = !!(filters.startDate && filters.endDate);
+
+  const defaultStartDate = useMemo(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    return d.toISOString().split("T")[0];
+  }, []);
+  const defaultEndDate = useMemo(() => new Date().toISOString().split("T")[0], []);
+
+  const insightStart = hasUserDates ? filters.startDate : defaultStartDate;
+  const insightEnd   = hasUserDates ? filters.endDate   : defaultEndDate;
+
+  const { data: insightsData, isLoading: isLoadingInsights } = useQuery({
+    queryKey: crmKeys.insights(insightStart, insightEnd),
+    queryFn: () => fetchCustomerInsights(insightStart, insightEnd, getToken),
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+
+  // When user has explicitly set dates → show insights data as primary table.
+  // Otherwise → merge insights into the member list to enrich with spending/outlet/prefs.
+  const enrichedCustomers = useMemo(() => {
+    if (hasUserDates && insightsData?.raw && insightsData.raw.length > 0) {
+      // User filtered by date → show only customers with activity in that period
+      let filteredInsights = insightsData.raw;
+      
+      // If category filter is active, apply it locally to the insights list
+      // by checking food_preferences and beverage_preferences (which contain the sub_codes)
+      if (filters.category) {
+        filteredInsights = filteredInsights.filter(insight => {
+          const foodPrefs = insight.food_preferences || "";
+          const bevPrefs = insight.beverage_preferences || "";
+          return foodPrefs.includes(filters.category!) || bevPrefs.includes(filters.category!);
+        });
+      }
+
+      return filteredInsights.map(r => mapInsightToListItem(r, outletMap));
+    }
+    // Default: merge insights into member list to enrich existing rows
+    if (insightsData) {
+      return mergeInsightsIntoMembers(customers, insightsData, outletMap);
+    }
+    return customers;
+  }, [customers, insightsData, outletMap, hasUserDates, filters.category]);
+
+  // When showing insights-only data, use its count; otherwise use the member list count
+  const displayTotal = hasUserDates && insightsData?.raw
+    ? enrichedCustomers.length // Use enrichedCustomers.length which reflects the local category filter
+    : totalCount;
+
+  const selectedCustomers = enrichedCustomers.filter(c => selectedIds.has(c.id));
 
   // ── Mutations ─────────────────────────────────────────────────────────────
   const invalidateList = useCallback(() => {
@@ -260,7 +356,7 @@ export default function CrmPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, body }: { id: number; body: CustomerFormValues }) =>
+    mutationFn: ({ id, body }: { id: string; body: CustomerFormValues }) =>
       updateCustomer(id, body, getToken),
     onSuccess: () => {
       invalidateList();
@@ -272,30 +368,31 @@ export default function CrmPage() {
       toast({ title: "Failed to update customer", description: err.message, variant: "destructive" }),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: number) => deleteCustomer(id, getToken),
-    onSuccess: () => {
-      invalidateList(); setDeletingCustomer(null);
-      toast({ title: "Customer deleted" });
-    },
-    onError: (err: Error) =>
-      toast({ title: "Failed to delete customer", description: err.message, variant: "destructive" }),
-  });
-
   // ── Form ──────────────────────────────────────────────────────────────────
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerSchema),
-    defaultValues: { fullName: "", phone: "", email: "", status: "New", seatingPreference: "Regular", primaryOutletId: "", notes: "" },
+    defaultValues: { firstName: "", lastName: "", phone: "", email: "", address: "", city: "", province: "" },
   });
 
   const openCreate = () => {
-    form.reset({ fullName: "", phone: "", email: "", status: "New", seatingPreference: "Regular", primaryOutletId: outlets[0]?.id ?? "", notes: "" });
+    form.reset({ firstName: "", lastName: "", phone: "", email: "", address: "", city: "", province: "" });
     setIsCreateOpen(true);
   };
 
   const openEdit = (c: CustomerListItem) => {
     setEditingCustomer(c);
-    form.reset({ fullName: c.fullName, phone: c.phone, email: c.email || "", status: c.status, seatingPreference: "Regular", primaryOutletId: c.primaryOutletId, notes: "" });
+    const parts = c.fullName.split(" ");
+    const firstName = parts[0] || "";
+    const lastName = parts.slice(1).join(" ");
+    form.reset({ 
+      firstName, 
+      lastName, 
+      phone: c.phone, 
+      email: c.email || "", 
+      address: c.address || "", 
+      city: c.city || "", 
+      province: c.province || "" 
+    });
   };
 
   const onSubmit = (data: CustomerFormValues) => {
@@ -305,14 +402,14 @@ export default function CrmPage() {
 
   // ── Export handlers ───────────────────────────────────────────────────────
   const handleExport = async (format: "excel" | "pdf") => {
-    if (!customers?.length) {
+    if (!enrichedCustomers?.length) {
       toast({ title: "No data to export", description: "Apply filters or wait for data to load.", variant: "destructive" });
       return;
     }
     setIsExporting(true);
     try {
-      if (format === "excel") downloadExcel(customers, "crm-customers");
-      else                    downloadPdf(customers, "crm-customers");
+      if (format === "excel") downloadExcel(enrichedCustomers, "crm-customers");
+      else                    downloadPdf(enrichedCustomers, "crm-customers");
       toast({ title: `${format === "excel" ? "Excel" : "PDF"} report downloaded successfully` });
     } catch (err: any) {
       toast({ title: "Export failed", description: err?.message ?? "Unknown error", variant: "destructive" });
@@ -338,6 +435,27 @@ export default function CrmPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* WhatsApp broadcast */}
+          <Button
+            variant="outline"
+            className={`gap-2 transition-all ${
+              selectedIds.size > 0
+                ? "border-green-300 bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800 shadow-sm"
+                : ""
+            }`}
+            disabled={selectedIds.size === 0}
+            onClick={() => setIsWAModalOpen(true)}
+            data-testid="btn-whatsapp"
+          >
+            <MessageCircle className="w-4 h-4" />
+            <span className="hidden sm:inline">WhatsApp</span>
+            {selectedIds.size > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold bg-green-600 text-white">
+                {selectedIds.size}
+              </span>
+            )}
+          </Button>
+
           {/* Export dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -386,14 +504,14 @@ export default function CrmPage() {
                 <DialogTitle>Add New Customer</DialogTitle>
                 <DialogDescription>Register a new guest in your CRM.</DialogDescription>
               </DialogHeader>
-              <CustomerForm form={form} onSubmit={onSubmit} isPending={createMutation.isPending} onCancel={() => setIsCreateOpen(false)} outlets={outlets} />
+              <CustomerForm form={form} onSubmit={onSubmit} isPending={createMutation.isPending} onCancel={() => setIsCreateOpen(false)} />
             </DialogContent>
           </Dialog>
         </div>
       </div>
 
       {/* Stat cards */}
-      <SummaryCards customers={customers} isLoading={isLoading} />
+      <SummaryCards total={totalCount} isLoading={isPageLoading} isCounting={isCounting} />
 
       {/* Filter bar */}
       <Card>
@@ -401,31 +519,48 @@ export default function CrmPage() {
           <CardTitle className="text-sm font-medium text-muted-foreground">Search & Filters</CardTitle>
         </CardHeader>
         <CardContent className="pb-4">
-          <FilterBar filters={filters} outlets={outlets} onChange={setFilters} />
+          <FilterBar filters={filters} outlets={outlets} categories={categories} onChange={setFilters} isLoadingInsights={isLoadingInsights} />
         </CardContent>
       </Card>
 
       {/* Results label */}
-      {!isLoading && customers && (
-        <p className="text-sm text-muted-foreground -mb-3">
-          {customers.length === 0
-            ? "No results"
-            : `${customers.length} customer${customers.length !== 1 ? "s" : ""} found`}
-        </p>
+      {(!isPageLoading || hasUserDates) && (
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-muted px-3 py-1 text-sm font-medium text-muted-foreground">
+            {isLoadingInsights && hasUserDates ? (
+              <span className="animate-pulse">Loading customer insights…</span>
+            ) : isCounting && !hasUserDates ? (
+              <span className="animate-pulse">Calculating total customers...</span>
+            ) : displayTotal === 0 ? (
+              "No results"
+            ) : (
+              <>
+                <span className="font-semibold text-foreground">{displayTotal}</span>
+                {hasUserDates && insightsData?.raw
+                  ? ` Customer${displayTotal !== 1 ? "s" : ""} with activity in this period`
+                  : ` Customer${displayTotal !== 1 ? "s" : ""} Found`
+                }
+              </>
+            )}
+          </span>
+        </div>
       )}
 
       {/* Data table */}
       <CustomerTable
-        customers={customers ?? []}
-        isLoading={isLoading}
+        customers={enrichedCustomers ?? []}
+        isLoading={isPageLoading || (isLoadingInsights && hasUserDates)}
         isError={isError}
-        page={page}
-        pageSize={pageSize}
+        page={hasUserDates ? 1 : page}
+        pageSize={hasUserDates ? displayTotal : pageSize}
+        total={displayTotal}
         onPage={setPage}
         onPageSize={setPageSize}
         onView={(c) => setLocation(`/crm/${c.id}`)}
         onEdit={openEdit}
-        onDelete={setDeletingCustomer}
+        selectedIds={selectedIds}
+        onToggle={handleToggle}
+        onToggleAll={handleToggleAll}
       />
 
       {/* Edit dialog */}
@@ -435,31 +570,17 @@ export default function CrmPage() {
             <DialogTitle>Edit Customer</DialogTitle>
             <DialogDescription>Update details for {editingCustomer?.fullName}.</DialogDescription>
           </DialogHeader>
-          <CustomerForm form={form} onSubmit={onSubmit} isPending={updateMutation.isPending} onCancel={() => setEditingCustomer(null)} outlets={outlets} />
+          <CustomerForm form={form} onSubmit={onSubmit} isPending={updateMutation.isPending} onCancel={() => setEditingCustomer(null)} />
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirm */}
-      <AlertDialog open={!!deletingCustomer} onOpenChange={(open) => { if (!open) setDeletingCustomer(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Customer?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently remove <strong>{deletingCustomer?.fullName}</strong> and all their history. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-              disabled={deleteMutation.isPending}
-              onClick={() => deletingCustomer && deleteMutation.mutate(deletingCustomer.id)}
-            >
-              {deleteMutation.isPending ? "Deleting…" : "Yes, Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* WhatsApp modal */}
+      <WhatsAppModal
+        open={isWAModalOpen}
+        onOpenChange={setIsWAModalOpen}
+        selectedCustomers={selectedCustomers}
+        onClearSelection={clearSelection}
+      />
     </div>
   );
 }

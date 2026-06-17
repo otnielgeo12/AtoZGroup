@@ -125,7 +125,10 @@ export function ImageUpload({ value, onChange, className }: ImageUploadProps) {
               return {
                 method: "POST",
                 url: fullUploadUrl,
-                headers: { "Content-Type": compressed.type || "application/octet-stream" },
+                headers: { 
+                  "Content-Type": compressed.type || "application/octet-stream",
+                  "Authorization": `Bearer ${localStorage.getItem("auth_token") || ""}`
+                },
                 // Pass the compressed file so the uploader sends it instead of the original.
                 file: compressed,
               };

@@ -1,6 +1,6 @@
-import { format } from "date-fns";
-import { Eye, Pencil, Trash2, Crown, UserCheck, UserPlus, Phone, Mail, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Eye, Pencil, Crown, UserCheck, UserPlus, Phone, Mail, MapPin, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Utensils, Wine } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,24 +15,11 @@ const STATUS_CFG: Record<CustomerStatus, { cls: string; icon: React.ReactNode }>
 };
 
 function StatusBadge({ status }: { status: CustomerStatus }) {
-  const { cls, icon } = STATUS_CFG[status];
+  const { cls, icon } = STATUS_CFG[status] ?? STATUS_CFG.Regular;
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${cls}`}>
       {icon}{status}
     </span>
-  );
-}
-
-// ─── Preference chips ─────────────────────────────────────────────────────────
-
-function PrefChips({ items, colorBase }: { items: string[]; colorBase: string }) {
-  if (!items.length) return <span className="text-muted-foreground text-xs">—</span>;
-  return (
-    <div className="flex flex-wrap gap-1">
-      {items.map((p) => (
-        <span key={p} className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${colorBase}`}>{p}</span>
-      ))}
-    </div>
   );
 }
 
@@ -97,19 +84,26 @@ interface CustomerTableProps {
   isError:     boolean;
   page:        number;
   pageSize:    number;
+  total:       number;
   onPage:      (p: number) => void;
   onPageSize:  (s: number) => void;
   onView:      (c: CustomerListItem) => void;
   onEdit:      (c: CustomerListItem) => void;
-  onDelete:    (c: CustomerListItem) => void;
+  selectedIds:    Set<string>;
+  onToggle:       (id: string) => void;
+  onToggleAll:    (ids: string[], checked: boolean) => void;
 }
 
 export function CustomerTable({
   customers, isLoading, isError,
-  page, pageSize, onPage, onPageSize,
-  onView, onEdit, onDelete,
+  page, pageSize, total, onPage, onPageSize,
+  onView, onEdit,
+  selectedIds, onToggle, onToggleAll,
 }: CustomerTableProps) {
-  const paginated = customers.slice((page - 1) * pageSize, page * pageSize);
+  const paginated = customers;
+  const COL_COUNT = 12;
+  const allOnPageSelected = paginated.length > 0 && paginated.every(c => selectedIds.has(c.id));
+  const someOnPageSelected = paginated.some(c => selectedIds.has(c.id));
 
   return (
     <div className="rounded-lg border border-border overflow-hidden">
@@ -117,23 +111,35 @@ export function CustomerTable({
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent bg-muted/30">
-              <TableHead className="pl-4 min-w-[180px]">Customer</TableHead>
+              <TableHead className="pl-4 w-[44px]" onClick={(e) => e.stopPropagation()}>
+                <Checkbox
+                  checked={allOnPageSelected ? true : someOnPageSelected ? "indeterminate" : false}
+                  onCheckedChange={(checked) => {
+                    onToggleAll(paginated.map(c => c.id), !!checked);
+                  }}
+                  aria-label="Select all on page"
+                  data-testid="checkbox-select-all"
+                />
+              </TableHead>
+              <TableHead className="min-w-[60px]">Code</TableHead>
+              <TableHead className="min-w-[180px]">Customer</TableHead>
               <TableHead className="min-w-[180px]">Contact</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead className="min-w-[120px]">Category</TableHead>
+              <TableHead className="min-w-[160px]">Outlet</TableHead>
               <TableHead className="min-w-[140px]">Food Prefs</TableHead>
-              <TableHead className="min-w-[150px]">Bev. Prefs</TableHead>
-              <TableHead>Outlet</TableHead>
-              <TableHead className="text-right">Visits</TableHead>
-              <TableHead className="min-w-[100px]">Last Visit</TableHead>
-              <TableHead className="text-right pr-4 min-w-[110px]">Actions</TableHead>
+              <TableHead className="min-w-[140px]">Beverage Prefs</TableHead>
+              <TableHead className="text-right min-w-[120px]">Spending</TableHead>
+              <TableHead className="text-right min-w-[80px]">Visits</TableHead>
+              <TableHead className="text-right min-w-[90px]">Points</TableHead>
+              <TableHead className="text-right pr-4 min-w-[90px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               Array.from({ length: 8 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 9 }).map((_, j) => (
-                    <TableCell key={j} className={j === 0 ? "pl-4" : j === 8 ? "pr-4" : ""}>
+                  {Array.from({ length: COL_COUNT }).map((_, j) => (
+                    <TableCell key={j} className={j === 0 ? "pl-4" : j === COL_COUNT - 1 ? "pr-4" : ""}>
                       <Skeleton className="h-4 w-full" />
                     </TableCell>
                   ))}
@@ -141,13 +147,13 @@ export function CustomerTable({
               ))
             ) : isError ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-16 text-destructive">
+                <TableCell colSpan={COL_COUNT} className="text-center py-16 text-destructive">
                   Failed to load customers. Check your connection and try again.
                 </TableCell>
               </TableRow>
             ) : !customers.length ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-16 text-muted-foreground">
+                <TableCell colSpan={COL_COUNT} className="text-center py-16 text-muted-foreground">
                   <p className="font-medium">No customers match your filters.</p>
                   <p className="text-sm mt-1 opacity-70">Try adjusting the search or filter criteria.</p>
                 </TableCell>
@@ -160,13 +166,30 @@ export function CustomerTable({
                   onClick={() => onView(c)}
                   data-testid={`crm-row-${c.id}`}
                 >
-                  {/* Customer */}
-                  <TableCell className="pl-4">
+                  {/* Checkbox */}
+                  <TableCell className="pl-4" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedIds.has(c.id)}
+                      onCheckedChange={() => onToggle(c.id)}
+                      aria-label={`Select ${c.fullName}`}
+                      data-testid={`checkbox-${c.id}`}
+                    />
+                  </TableCell>
+
+                  {/* Code */}
+                  <TableCell>
+                    <span className="font-mono text-xs text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
+                      {c.id}
+                    </span>
+                  </TableCell>
+
+                  {/* Customer name */}
+                  <TableCell>
                     <div className="flex items-center gap-2.5">
                       <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs shrink-0 border border-primary/20">
                         {c.fullName.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase()}
                       </div>
-                      <span className="font-medium text-sm group-hover:text-primary transition-colors truncate max-w-[130px]">
+                      <span className="font-medium text-sm group-hover:text-primary transition-colors truncate max-w-[150px]">
                         {c.fullName}
                       </span>
                     </div>
@@ -187,36 +210,98 @@ export function CustomerTable({
                     </div>
                   </TableCell>
 
-                  {/* Status */}
+                  {/* Category */}
                   <TableCell onClick={(e) => e.stopPropagation()}>
-                    <StatusBadge status={c.status} />
-                  </TableCell>
-
-                  {/* Food prefs */}
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <PrefChips items={c.foodPreferences} colorBase="bg-orange-50 text-orange-700 border border-orange-200" />
-                  </TableCell>
-
-                  {/* Bev prefs */}
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <PrefChips items={c.beveragePreferences} colorBase="bg-rose-50 text-rose-700 border border-rose-200" />
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-muted text-muted-foreground border border-border">
+                      {c.categoryName && c.categoryName !== "—" ? c.categoryName : "Unknown"}
+                    </span>
                   </TableCell>
 
                   {/* Outlet */}
-                  <TableCell className="text-sm text-muted-foreground" onClick={(e) => e.stopPropagation()}>
-                    {c.primaryOutletName}
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium text-[13px] text-foreground truncate max-w-[140px]">
+                        {c.primaryOutletName && c.primaryOutletName !== "—" ? c.primaryOutletName : "All Outlets"}
+                      </span>
+                      {(c.city || c.province || c.address) && (
+                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <MapPin className="w-2.5 h-2.5 shrink-0" />
+                          <span className="truncate max-w-[140px]">
+                            {[c.city, c.province].filter(Boolean).join(", ") || c.address || ""}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
+
+                  {/* Food Preferences */}
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <div className="flex flex-wrap gap-1">
+                      {c.foodPreferences.length > 0 ? (
+                        c.foodPreferences.slice(0, 3).map((pref, i) => (
+                          <span key={i} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-50 text-orange-700 border border-orange-200">
+                            <Utensils className="w-2.5 h-2.5" />{pref}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">—</span>
+                      )}
+                      {c.foodPreferences.length > 3 && (
+                        <span className="text-[10px] text-muted-foreground">+{c.foodPreferences.length - 3}</span>
+                      )}
+                    </div>
+                  </TableCell>
+
+                  {/* Beverage Preferences */}
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <div className="flex flex-wrap gap-1">
+                      {c.beveragePreferences.length > 0 ? (
+                        c.beveragePreferences.slice(0, 3).map((pref, i) => (
+                          <span key={i} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                            <Wine className="w-2.5 h-2.5" />{pref}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">—</span>
+                      )}
+                      {c.beveragePreferences.length > 3 && (
+                        <span className="text-[10px] text-muted-foreground">+{c.beveragePreferences.length - 3}</span>
+                      )}
+                    </div>
+                  </TableCell>
+
+                  {/* Spending */}
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                    {c.totalSpending > 0 ? (
+                      <span className="font-semibold text-[13px] text-foreground">
+                        Rp {c.totalSpending.toLocaleString("id-ID")}
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground">—</span>
+                    )}
                   </TableCell>
 
                   {/* Visits */}
-                  <TableCell className="text-right font-medium text-sm" onClick={(e) => e.stopPropagation()}>
-                    {c.totalVisits}
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                    {c.totalVisits > 0 ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                        {c.totalVisits}
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground">—</span>
+                    )}
                   </TableCell>
 
-                  {/* Last visit */}
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(c.lastVisitDate), "dd MMM yyyy")}
+                  {/* Points */}
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      {c.pointBalance.toLocaleString("id-ID")} pts
                     </span>
+                  </TableCell>
+
+                  {/* Status */}
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <StatusBadge status={c.status} />
                   </TableCell>
 
                   {/* Actions */}
@@ -228,9 +313,6 @@ export function CustomerTable({
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(c)} data-testid={`btn-edit-${c.id}`}>
                         <Pencil className="w-3.5 h-3.5" /><span className="sr-only">Edit</span>
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => onDelete(c)} data-testid={`btn-delete-${c.id}`}>
-                        <Trash2 className="w-3.5 h-3.5" /><span className="sr-only">Delete</span>
-                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -241,7 +323,7 @@ export function CustomerTable({
       </div>
 
       {!isLoading && !isError && customers.length > 0 && (
-        <Pagination page={page} pageSize={pageSize} total={customers.length} onPage={onPage} onPageSize={onPageSize} />
+        <Pagination page={page} pageSize={pageSize} total={total} onPage={onPage} onPageSize={onPageSize} />
       )}
     </div>
   );
