@@ -61,9 +61,9 @@ export default defineConfig(({ mode }) => {
         "/vsoft-api": {
           target: (() => {
             try {
-              const u = new URL(env.VITE_CRM_API_URL || "https://apicrm.apicrmatoz.online");
+              const u = new URL(env.VITE_CRM_API_URL || "https://api.apicrmatoz.online");
               return u.origin;
-            } catch(e) { return "https://apicrm.apicrmatoz.online"; }
+            } catch(e) { return "https://api.apicrmatoz.online"; }
           })(),
           changeOrigin: true,
           rewrite: (path: string) => path.replace(/^\/vsoft-api/, ""),
@@ -81,7 +81,7 @@ export default defineConfig(({ mode }) => {
         },
         // All other API calls → production
         "/api": {
-          target: "https://api.atozgroupsemarang.com",
+          target: "https://apiserver.atozgroupsemarang.com",
           changeOrigin: true,
         },
       },

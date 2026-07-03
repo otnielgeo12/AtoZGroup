@@ -53,7 +53,7 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       "/api": {
-        target: "https://api.atozgroupsemarang.com",
+        target: "https://apiserver.atozgroupsemarang.com",
         changeOrigin: true,
       },
     },
