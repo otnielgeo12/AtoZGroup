@@ -9,12 +9,12 @@ import { format } from "date-fns";
 import {
   ArrowLeft, Users, Phone, Mail, Crown, UserCheck, UserPlus,
   Coins, MapPin, Pencil, Music,
-  CheckCircle2, XCircle, AlertCircle, CalendarDays,
+  CheckCircle2, XCircle, AlertCircle, CalendarDays, ShoppingBag, Receipt,
 } from "lucide-react";
 
 import {
-  getCustomer, updateCustomer, crmKeys,
-  type CustomerStatus, type CustomerDetail,
+  getCustomer, getCustomerHistory, updateCustomer, crmKeys,
+  type CustomerStatus, type CustomerDetail, type CustomerPurchaseItem,
 } from "@/lib/crm-api";
 
 import { Button } from "@/components/ui/button";
@@ -114,6 +114,12 @@ export default function CrmDetailPage() {
     queryKey: crmKeys.detail(id),
     queryFn: () => getCustomer(id, getToken),
     enabled: !!id,
+  });
+
+  const { data: historyItems = [], isLoading: isHistoryLoading } = useQuery({
+    queryKey: crmKeys.detailHistory(id, customer?.fullName, customer?.phone),
+    queryFn: () => getCustomerHistory(id, customer?.fullName, customer?.phone, getToken),
+    enabled: !!id && !!customer,
   });
 
   const updateMutation = useMutation({
@@ -227,9 +233,12 @@ export default function CrmDetailPage() {
       {/* ── Tabs ── */}
       <Tabs defaultValue="profile" className="w-full">
         <TabsList className="mb-6 bg-muted/50 p-1 w-full sm:w-auto overflow-x-auto justify-start border border-border">
-          <TabsTrigger value="profile"    className="px-5 data-[state=active]:bg-background data-[state=active]:shadow-sm">Profile</TabsTrigger>
-          <TabsTrigger value="events"     className="px-5 data-[state=active]:bg-background data-[state=active]:shadow-sm">Event History</TabsTrigger>
-          <TabsTrigger value="reservations" className="px-5 data-[state=active]:bg-background data-[state=active]:shadow-sm">Reservations</TabsTrigger>
+          <TabsTrigger value="profile" className="px-5 data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center gap-2">
+            <UserCheck className="w-4 h-4" /> Profile
+          </TabsTrigger>
+          <TabsTrigger value="history" className="px-5 data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center gap-2">
+            <Receipt className="w-4 h-4" /> History
+          </TabsTrigger>
         </TabsList>
 
         {/* Profile Tab */}
@@ -292,34 +301,78 @@ export default function CrmDetailPage() {
           </Card>
         </TabsContent>
 
-        {/* Event History Tab */}
-        <TabsContent value="events" className="outline-none">
+        {/* History Tab */}
+        <TabsContent value="history" className="outline-none">
           <Card>
-            <CardHeader>
-              <CardTitle>Event History</CardTitle>
-              <CardDescription>Special events and private bookings this guest has attended.</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between pb-4">
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <ShoppingBag className="w-5 h-5 text-primary" /> Purchase History
+                </CardTitle>
+                <CardDescription>
+                  Table pembelian per customer berdasarkan nama ({customer.fullName}) dan nomor HP ({customer.phone}).
+                </CardDescription>
+              </div>
+              <Badge variant="outline" className="text-xs font-mono py-1 px-3">
+                {historyItems.length} Transactions
+              </Badge>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                <Music className="w-10 h-10 opacity-20 mb-3" />
-                <p className="font-medium">Not supported in Vsoft API.</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Reservations Tab */}
-        <TabsContent value="reservations" className="outline-none">
-          <Card>
-            <CardHeader>
-              <CardTitle>Reservation History</CardTitle>
-              <CardDescription>All past table reservation records for this guest.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                <CalendarDays className="w-10 h-10 opacity-20 mb-3" />
-                <p className="font-medium">Not supported in Vsoft API.</p>
-              </div>
+              {isHistoryLoading ? (
+                <div className="p-6 space-y-3">
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ) : historyItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                  <Receipt className="w-10 h-10 opacity-20 mb-3" />
+                  <p className="font-medium text-sm">Tidak ada riwayat pembelian ditemukan untuk customer ini.</p>
+                  <p className="text-xs mt-1 opacity-70">Data pembelian dicocokkan otomatis melalui nama dan nomor WhatsApp/HP.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto border-t border-border">
+                  <Table>
+                    <TableHeader className="bg-muted/30">
+                      <TableRow>
+                        <TableHead className="font-semibold text-xs uppercase text-muted-foreground">No Bill</TableHead>
+                        <TableHead className="font-semibold text-xs uppercase text-muted-foreground">Nama</TableHead>
+                        <TableHead className="font-semibold text-xs uppercase text-muted-foreground">Tanggal</TableHead>
+                        <TableHead className="font-semibold text-xs uppercase text-muted-foreground">Items</TableHead>
+                        <TableHead className="font-semibold text-xs uppercase text-muted-foreground text-right">Qty</TableHead>
+                        <TableHead className="font-semibold text-xs uppercase text-muted-foreground text-right">Harga</TableHead>
+                        <TableHead className="font-semibold text-xs uppercase text-muted-foreground text-right">Disc%</TableHead>
+                        <TableHead className="font-semibold text-xs uppercase text-muted-foreground text-right">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {historyItems.map((item, idx) => {
+                        const totalRp = Number(item.total) || (Number(item.qty || 1) * Number(item.harga || 0));
+                        return (
+                          <TableRow key={`${item.no_bill}-${idx}`} className="hover:bg-muted/50 transition-colors">
+                            <TableCell className="font-mono text-xs font-medium text-primary">{item.no_bill || "—"}</TableCell>
+                            <TableCell className="text-sm font-medium">{item.nama || customer.fullName}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                              {item.tanggal ? format(new Date(item.tanggal), "dd MMM yyyy, HH:mm") : "—"}
+                            </TableCell>
+                            <TableCell className="text-sm max-w-[240px] truncate" title={item.items}>{item.items || "—"}</TableCell>
+                            <TableCell className="text-sm text-right font-mono">{Number(item.qty || 0).toLocaleString("id-ID")}</TableCell>
+                            <TableCell className="text-sm text-right font-mono">
+                              Rp {Number(item.harga || 0).toLocaleString("id-ID")}
+                            </TableCell>
+                            <TableCell className="text-xs text-right font-mono text-amber-600 font-semibold">
+                              {Number(item.disc || 0)}%
+                            </TableCell>
+                            <TableCell className="text-sm text-right font-mono font-bold text-emerald-600">
+                              Rp {totalRp.toLocaleString("id-ID")}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
