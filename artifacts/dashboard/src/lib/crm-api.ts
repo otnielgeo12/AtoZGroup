@@ -2,7 +2,7 @@
  * CRM API client — Vsoft POS adapter
  *
  * Translates between the Dashboard's internal CRM types and the real
- * Vsoft POS API at apicrm.atozgroupsemarang.com.
+ * Vsoft POS API at api.apicrmatoz.online.
  *
  * Auth: Basic Auth (username + password from env vars).
  * All responses are wrapped: { message, errors, data }.
@@ -117,6 +117,8 @@ interface VsoftResponse<T> {
   message: string;
   errors: unknown;
   data: T;
+  total?: number;
+  count?: number;
 }
 
 interface VsoftMember {
@@ -145,9 +147,11 @@ interface VsoftMember {
 }
 
 export interface VsoftInsight {
-  code: string;
+  code?: string;
+  customer_code?: string;
   customer_name?: string;
   phone?: string;
+  phone_number?: string;
   email?: string | null;
   status?: string | null;
   outlet?: string;
@@ -322,7 +326,11 @@ export async function listCustomers(
 
   const url = `${base}/api/v1/members?${qs}`;
   const resp = await vsfRequest<VsoftResponse<VsoftMember[]>>(url);
-  return (resp.data ?? []).map(mapVsoftMember);
+  const items = (resp.data ?? []).map(mapVsoftMember);
+  if (typeof resp.total === "number") {
+    (items as any).totalCount = resp.total;
+  }
+  return items;
 }
 
 // ─── Preference helpers ───────────────────────────────────────────────────────
@@ -360,9 +368,9 @@ export function mapInsightToListItem(
   const categoryName = [topFood, topBev].filter(Boolean).join(" / ") || "—";
 
   return {
-    id:                insight.code || insight.phone || "",
+    id:                insight.code || insight.customer_code || insight.phone || insight.phone_number || "",
     fullName:          (insight.customer_name || "").trim() || "(No Name)",
-    phone:             insight.phone || "",
+    phone:             insight.phone || insight.phone_number || "",
     email:             insight.email || "",
     status:            (insight.status as any) || "Regular",
     totalVisits:       Number(insight.total_visit) || 0,
@@ -396,8 +404,10 @@ export async function fetchCustomerInsights(
   const byCode  = new Map<string, VsoftInsight>();
   const byPhone = new Map<string, VsoftInsight>();
   for (const item of (resp.data ?? [])) {
-    if (item.code)  byCode.set(item.code, item);
-    if (item.phone) byPhone.set(item.phone, item);
+    const cCode = item.code || item.customer_code;
+    const cPhone = item.phone || item.phone_number;
+    if (cCode)  byCode.set(cCode, item);
+    if (cPhone) byPhone.set(cPhone, item);
   }
   return { byCode, byPhone, raw: resp.data ?? [] };
 }
@@ -454,6 +464,27 @@ export async function countCustomers(
   }
 
   const base = getCrmBaseUrl();
+
+  // Try fetching exact total first from take=1 query
+  try {
+    const qs = new URLSearchParams();
+    if (search) qs.set("search", search);
+    if (category) qs.set("category", category);
+    if (outletId) {
+      qs.set("outlet_code", outletId);
+      qs.set("outlet", outletId);
+    }
+    qs.set("take", "1");
+    qs.set("skip", "0");
+    const url = `${base}/api/v1/members?${qs}`;
+    const resp = await vsfRequest<VsoftResponse<VsoftMember[]>>(url);
+    if (typeof resp.total === "number") {
+      return resp.total;
+    }
+  } catch (err) {
+    console.warn("⚠️ Exact total query fallback:", err);
+  }
+
   const checkOffset = async (offset: number) => {
     const qs = new URLSearchParams();
     if (search) qs.set("search", search);
@@ -561,6 +592,38 @@ export async function updateCustomer(
   );
 }
 
+export interface CustomerPurchaseItem {
+  no_bill: string;
+  nama: string;
+  tanggal: string;
+  items: string;
+  qty: number;
+  harga: number;
+  disc: number;
+  total: number;
+}
+
+export async function getCustomerHistory(
+  code: string,
+  name: string = "",
+  phone: string = "",
+  _getToken?: () => Promise<string | null>,
+): Promise<CustomerPurchaseItem[]> {
+  const base = getCrmBaseUrl();
+  const qs = new URLSearchParams();
+  if (name) qs.set("name", name);
+  if (phone) qs.set("phone", phone);
+  try {
+    const resp = await vsfRequest<VsoftResponse<CustomerPurchaseItem[]>>(
+      `${base}/api/v1/members/${encodeURIComponent(code)}/history?${qs}`,
+    );
+    return resp.data ?? [];
+  } catch (err) {
+    console.warn("Failed to fetch customer history:", err);
+    return [];
+  }
+}
+
 // Note: deleteCustomer is not available in Vsoft API
 
 // ─── Query keys ───────────────────────────────────────────────────────────────
@@ -573,5 +636,106 @@ export const crmKeys = {
   list: (params: ListCustomersParams) => [...crmKeys.lists(), params] as const,
   details: () => [...crmKeys.all, "detail"] as const,
   detail: (code: string) => [...crmKeys.details(), code] as const,
+  detailHistory: (code: string, name?: string, phone?: string) => [...crmKeys.details(), code, "history", name, phone] as const,
   insights: (startDate: string, endDate: string) => [...crmKeys.all, "insights", startDate, endDate] as const,
 };
+
+// ─── WhatsApp API Placeholders (Under Construction) ───────────────────────────
+
+export interface SendWhatsAppParams {
+  recipients: CustomerListItem[];
+  message: string;
+  imageFile?: File | null;
+}
+
+/**
+ * Placeholder API WhatsApp untuk AtoZ Group.
+ * Untuk sementara dikosongkan/di-mock karena endpoint API WhatsApp masih dalam tahap pembuatan.
+ */
+export async function sendWhatsAppAtoZ(_params: SendWhatsAppParams): Promise<{ success: boolean; message: string }> {
+  // TODO: Hubungkan ke endpoint API WhatsApp AtoZ saat sudah siap
+  console.log("[WhatsApp API - AtoZ] Placeholder dipanggil untuk", _params.recipients.length, "penerima");
+  await new Promise(res => setTimeout(res, 800));
+  return { success: true, message: "WhatsApp API AtoZ masih dalam pengembangan." };
+}
+
+/**
+ * Placeholder API WhatsApp untuk Bosa.
+ */
+export async function sendWhatsAppBosa(_params: SendWhatsAppParams): Promise<{ success: boolean; message: string }> {
+  // TODO: Hubungkan ke endpoint API WhatsApp Bosa saat sudah siap
+  console.log("[WhatsApp API - Bosa] Placeholder dipanggil untuk", _params.recipients.length, "penerima");
+  await new Promise(res => setTimeout(res, 800));
+  return { success: true, message: "WhatsApp API Bosa masih dalam pengembangan." };
+}
+
+/**
+ * Placeholder API WhatsApp untuk Bodega.
+ */
+export async function sendWhatsAppBodega(_params: SendWhatsAppParams): Promise<{ success: boolean; message: string }> {
+  // TODO: Hubungkan ke endpoint API WhatsApp Bodega saat sudah siap
+  console.log("[WhatsApp API - Bodega] Placeholder dipanggil untuk", _params.recipients.length, "penerima");
+  await new Promise(res => setTimeout(res, 800));
+  return { success: true, message: "WhatsApp API Bodega masih dalam pengembangan." };
+}
+
+/**
+ * Placeholder API WhatsApp untuk Lakers.
+ */
+export async function sendWhatsAppLakers(_params: SendWhatsAppParams): Promise<{ success: boolean; message: string }> {
+  // TODO: Hubungkan ke endpoint API WhatsApp Lakers saat sudah siap
+  console.log("[WhatsApp API - Lakers] Placeholder dipanggil untuk", _params.recipients.length, "penerima");
+  await new Promise(res => setTimeout(res, 800));
+  return { success: true, message: "WhatsApp API Lakers masih dalam pengembangan." };
+}
+
+/**
+ * Placeholder API WhatsApp untuk Redhare.
+ */
+export async function sendWhatsAppRedhare(_params: SendWhatsAppParams): Promise<{ success: boolean; message: string }> {
+  // TODO: Hubungkan ke endpoint API WhatsApp Redhare saat sudah siap
+  console.log("[WhatsApp API - Redhare] Placeholder dipanggil untuk", _params.recipients.length, "penerima");
+  await new Promise(res => setTimeout(res, 800));
+  return { success: true, message: "WhatsApp API Redhare masih dalam pengembangan." };
+}
+
+/**
+ * Placeholder API WhatsApp untuk Oombee.
+ */
+export async function sendWhatsAppOombee(_params: SendWhatsAppParams): Promise<{ success: boolean; message: string }> {
+  // TODO: Hubungkan ke endpoint API WhatsApp Oombee saat sudah siap
+  console.log("[WhatsApp API - Oombee] Placeholder dipanggil untuk", _params.recipients.length, "penerima");
+  await new Promise(res => setTimeout(res, 800));
+  return { success: true, message: "WhatsApp API Oombee masih dalam pengembangan." };
+}
+
+/**
+ * Placeholder API WhatsApp untuk Shiraz.
+ */
+export async function sendWhatsAppShiraz(_params: SendWhatsAppParams): Promise<{ success: boolean; message: string }> {
+  // TODO: Hubungkan ke endpoint API WhatsApp Shiraz saat sudah siap
+  console.log("[WhatsApp API - Shiraz] Placeholder dipanggil untuk", _params.recipients.length, "penerima");
+  await new Promise(res => setTimeout(res, 800));
+  return { success: true, message: "WhatsApp API Shiraz masih dalam pengembangan." };
+}
+
+/**
+ * Placeholder API WhatsApp untuk District 5.
+ */
+export async function sendWhatsAppDistrict5(_params: SendWhatsAppParams): Promise<{ success: boolean; message: string }> {
+  // TODO: Hubungkan ke endpoint API WhatsApp District 5 saat sudah siap
+  console.log("[WhatsApp API - District5] Placeholder dipanggil untuk", _params.recipients.length, "penerima");
+  await new Promise(res => setTimeout(res, 800));
+  return { success: true, message: "WhatsApp API District 5 masih dalam pengembangan." };
+}
+
+/**
+ * Placeholder API WhatsApp untuk Infinity.
+ */
+export async function sendWhatsAppInfinity(_params: SendWhatsAppParams): Promise<{ success: boolean; message: string }> {
+  // TODO: Hubungkan ke endpoint API WhatsApp Infinity saat sudah siap
+  console.log("[WhatsApp API - Infinity] Placeholder dipanggil untuk", _params.recipients.length, "penerima");
+  await new Promise(res => setTimeout(res, 800));
+  return { success: true, message: "WhatsApp API Infinity masih dalam pengembangan." };
+}
+

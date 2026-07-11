@@ -225,7 +225,7 @@ export default function CrmPage() {
 
   const queryParams = {
     search:    filters.search || undefined,
-    category:  filters.category || undefined,
+    category:  filters.foodCategory || filters.beverageCategory || undefined, // Fallback to either
     outletId:  filters.outletId || undefined,
     take:      apiTake,
     skip:      apiSkip,
@@ -237,20 +237,19 @@ export default function CrmPage() {
   });
 
   const { data: totalCustomers, isLoading: isCounting, isError: isCountingError } = useQuery({
-    queryKey: ["crm", "count", filters.search, filters.category, filters.outletId],
+    queryKey: ["crm", "count", filters.search, filters.foodCategory, filters.beverageCategory, filters.outletId],
     queryFn: async () => {
-      // Instead of counting, we can try to fetch with a high but safe limit like 5000 
-      // or rely on a separate count logic if the API provides it.
-      // But Vsoft doesn't provide a count endpoint, so let's fallback to the binary search count method
-      const count = await countCustomers(filters.search || "", filters.category, filters.outletId, apiCustomers?.length || 0, apiSkip, apiTake);
-      return count;
+      if (typeof (apiCustomers as any)?.totalCount === "number") {
+        return (apiCustomers as any).totalCount;
+      }
+      return await countCustomers(filters.search || "", filters.foodCategory || filters.beverageCategory, filters.outletId, apiCustomers?.length || 0, apiSkip, apiTake);
     },
-    enabled: !!apiCustomers, // only run after we have the first page
-    retry: 1, // only retry once to avoid spamming the API
+    enabled: !!apiCustomers && typeof (apiCustomers as any)?.totalCount !== "number",
+    retry: 1,
   });
 
-  // If error, we don't know the exact total, so we fallback to 6500 to allow navigation
-  const totalCount = isCountingError ? 6500 : (totalCustomers ?? (apiCustomers?.length || 0));
+  const exactAttachedTotal = typeof (apiCustomers as any)?.totalCount === "number" ? (apiCustomers as any).totalCount : undefined;
+  const totalCount = exactAttachedTotal ?? (isCountingError ? 6500 : (totalCustomers ?? (apiCustomers?.length || 0)));
   const isPageLoading = isLoading;
 
   const customers = apiCustomers || [];
@@ -299,7 +298,7 @@ export default function CrmPage() {
   const insightStart = hasUserDates ? filters.startDate : defaultStartDate;
   const insightEnd   = hasUserDates ? filters.endDate   : defaultEndDate;
 
-  const { data: insightsData, isLoading: isLoadingInsights } = useQuery({
+  const { data: insightsData, isLoading: isLoadingInsights, isError: isInsightsError } = useQuery({
     queryKey: crmKeys.insights(insightStart, insightEnd),
     queryFn: () => fetchCustomerInsights(insightStart, insightEnd, getToken),
     staleTime: 5 * 60 * 1000, // 5 minutes cache
@@ -316,22 +315,46 @@ export default function CrmPage() {
       
       // If category filter is active, apply it locally to the insights list
       // by checking food_preferences and beverage_preferences (which contain the sub_codes)
-      if (filters.category) {
+      if (filters.foodCategory || filters.beverageCategory) {
         filteredInsights = filteredInsights.filter(insight => {
           const foodPrefs = insight.food_preferences || "";
           const bevPrefs = insight.beverage_preferences || "";
-          return foodPrefs.includes(filters.category!) || bevPrefs.includes(filters.category!);
+          
+          let matches = true;
+          if (filters.foodCategory) {
+            matches = matches && foodPrefs.includes(filters.foodCategory);
+          }
+          if (filters.beverageCategory) {
+            matches = matches && bevPrefs.includes(filters.beverageCategory);
+          }
+          return matches;
         });
       }
 
       return filteredInsights.map(r => mapInsightToListItem(r, outletMap));
     }
     // Default: merge insights into member list to enrich existing rows
+    let finalCustomers = customers;
     if (insightsData) {
-      return mergeInsightsIntoMembers(customers, insightsData, outletMap);
+      finalCustomers = mergeInsightsIntoMembers(customers, insightsData, outletMap);
     }
-    return customers;
-  }, [customers, insightsData, outletMap, hasUserDates, filters.category]);
+    
+    // Apply local filters if the backend didn't (or couldn't) do it perfectly
+    if (filters.foodCategory || filters.beverageCategory) {
+      finalCustomers = finalCustomers.filter(c => {
+        let matches = true;
+        if (filters.foodCategory) {
+          matches = matches && c.foodPreferences.includes(filters.foodCategory);
+        }
+        if (filters.beverageCategory) {
+          matches = matches && c.beveragePreferences.includes(filters.beverageCategory);
+        }
+        return matches;
+      });
+    }
+    
+    return finalCustomers;
+  }, [customers, insightsData, outletMap, hasUserDates, filters.foodCategory, filters.beverageCategory]);
 
   // When showing insights-only data, use its count; otherwise use the member list count
   const displayTotal = hasUserDates && insightsData?.raw
@@ -550,7 +573,7 @@ export default function CrmPage() {
       <CustomerTable
         customers={enrichedCustomers ?? []}
         isLoading={isPageLoading || (isLoadingInsights && hasUserDates)}
-        isError={isError}
+        isError={hasUserDates ? isInsightsError : isError}
         page={hasUserDates ? 1 : page}
         pageSize={hasUserDates ? displayTotal : pageSize}
         total={displayTotal}
