@@ -4,7 +4,7 @@
  * Layout:
  *   [🔍 Search ──────────] [Start Date] [End Date] [Outlet ▾] [× Clear]
  */
-import { X, Search, CalendarDays } from "lucide-react";
+import { X, Search, CalendarDays, UserPlus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,19 +17,21 @@ import type { Outlet } from "@/lib/crm-api";
 export interface FilterState {
   search:    string;
   outletId:  string;
-  category:  string;
+  foodCategory: string;
+  beverageCategory: string;
   startDate: string;   // YYYY-MM-DD
   endDate:   string;   // YYYY-MM-DD
+  status:    string;
 }
 
 export const EMPTY_FILTERS: FilterState = {
-  search: "", outletId: "", category: "", startDate: "", endDate: "",
+  search: "", outletId: "", foodCategory: "", beverageCategory: "", startDate: "", endDate: "", status: "",
 };
 
 interface FilterBarProps {
   filters:    FilterState;
   outlets:    Outlet[];
-  categories: { code: string; name: string }[];
+  categories: { code: string; name: string; sub_code: string; sub_name: string }[];
   onChange:   (next: FilterState) => void;
   isLoadingInsights?: boolean;
 }
@@ -37,7 +39,7 @@ interface FilterBarProps {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function hasActiveFilters(f: FilterState) {
-  return f.search || f.outletId || f.category || f.startDate || f.endDate;
+  return f.search || f.outletId || f.foodCategory || f.beverageCategory || f.startDate || f.endDate || f.status;
 }
 
 // ─── FilterBar ────────────────────────────────────────────────────────────────
@@ -46,11 +48,14 @@ export function FilterBar({ filters, outlets, categories, onChange, isLoadingIns
   const update = (partial: Partial<FilterState>) =>
     onChange({ ...filters, ...partial });
 
+  const foodCategories = categories.filter(c => ["FOOD", "SNACK"].includes(c.code));
+  const bevCategories = categories.filter(c => ["ALKOHOL", "BEV", "NON ALK", "WINE"].includes(c.code));
+
   return (
     <div className="space-y-3">
-      {/* Row 1: Search + Category + Outlet */}
-      <div className="flex flex-col sm:flex-row gap-2">
-        <div className="relative flex-1">
+      {/* Row 1: Search + Categories + Outlet + New Members Filter */}
+      <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           <Input
             placeholder="Search by name, phone, or email…"
@@ -62,15 +67,30 @@ export function FilterBar({ filters, outlets, categories, onChange, isLoadingIns
         </div>
 
         <Select
-          value={filters.category || "__all__"}
-          onValueChange={(v) => update({ category: v === "__all__" ? "" : v })}
+          value={filters.foodCategory || "__all__"}
+          onValueChange={(v) => update({ foodCategory: v === "__all__" ? "" : v })}
         >
-          <SelectTrigger className="h-9 w-full sm:w-[180px]" data-testid="filter-category">
-            <SelectValue placeholder="All Categories" />
+          <SelectTrigger className="h-9 w-full sm:w-[150px]" data-testid="filter-food">
+            <SelectValue placeholder="All Foods" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__all__">All Categories</SelectItem>
-            {categories.map((c) => (
+            <SelectItem value="__all__">All Foods</SelectItem>
+            {foodCategories.map((c) => (
+              <SelectItem key={c.sub_code} value={c.sub_code}>{c.sub_name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={filters.beverageCategory || "__all__"}
+          onValueChange={(v) => update({ beverageCategory: v === "__all__" ? "" : v })}
+        >
+          <SelectTrigger className="h-9 w-full sm:w-[150px]" data-testid="filter-beverage">
+            <SelectValue placeholder="All Beverages" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All Beverages</SelectItem>
+            {bevCategories.map((c) => (
               <SelectItem key={c.sub_code} value={c.sub_code}>{c.sub_name}</SelectItem>
             ))}
           </SelectContent>
@@ -90,6 +110,21 @@ export function FilterBar({ filters, outlets, categories, onChange, isLoadingIns
             ))}
           </SelectContent>
         </Select>
+
+        <Button
+          variant={filters.status === "New" ? "default" : "outline"}
+          size="sm"
+          className={
+            filters.status === "New"
+              ? "h-9 px-3 gap-1.5 font-medium shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-sm"
+              : "h-9 px-3 gap-1.5 font-medium shrink-0 border-emerald-600/40 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+          }
+          onClick={() => update({ status: filters.status === "New" ? "" : "New" })}
+          data-testid="filter-new-member"
+        >
+          <UserPlus className="w-4 h-4" />
+          <span>New Members</span>
+        </Button>
       </div>
 
       {/* Row 2: Date range for Customer Insights + Clear */}

@@ -58,7 +58,7 @@ const STAT_CONFIG: Record<CustomerStatus, { label: string; icon: React.ReactNode
   New:     { label: "New Guests",    icon: <UserPlus  className="w-4 h-4" />, color: "text-emerald-600" },
 };
 
-function SummaryCards({ total, isLoading, isCounting }: { total: number; isLoading: boolean; isCounting?: boolean }) {
+function SummaryCards({ total, newGuestsCount, isLoading, isCounting }: { total: number; newGuestsCount: number; isLoading: boolean; isCounting?: boolean }) {
   if (isLoading) return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {Array.from({ length: 4 }).map((_, i) => (
@@ -67,11 +67,12 @@ function SummaryCards({ total, isLoading, isCounting }: { total: number; isLoadi
     </div>
   );
 
+  const regularCount = Math.max(0, total - newGuestsCount);
   const cards = [
-    { label: "Total",      value: total, icon: <Users className="w-4 h-4" />, color: "text-foreground" },
-    { label: "VIP Members", value: 0, icon: <Crown className="w-4 h-4" />, color: "text-amber-600" },
-    { label: "Regular",     value: total, icon: <UserCheck className="w-4 h-4" />, color: "text-blue-600" },
-    { label: "New Guests",  value: 0, icon: <UserPlus className="w-4 h-4" />, color: "text-emerald-600" },
+    { label: "Total",       value: total,          icon: <Users className="w-4 h-4" />,     color: "text-foreground" },
+    { label: "VIP Members", value: 0,              icon: <Crown className="w-4 h-4" />,     color: "text-amber-600" },
+    { label: "Regular",     value: regularCount,   icon: <UserCheck className="w-4 h-4" />, color: "text-blue-600" },
+    { label: "New Guests",  value: newGuestsCount, icon: <UserPlus className="w-4 h-4" />,  color: "text-emerald-600" },
   ];
 
   return (
@@ -227,6 +228,7 @@ export default function CrmPage() {
     search:    filters.search || undefined,
     category:  filters.foodCategory || filters.beverageCategory || undefined, // Fallback to either
     outletId:  filters.outletId || undefined,
+    status:    filters.status || undefined,
     take:      apiTake,
     skip:      apiSkip,
   };
@@ -237,7 +239,7 @@ export default function CrmPage() {
   });
 
   const { data: totalCustomers, isLoading: isCounting, isError: isCountingError } = useQuery({
-    queryKey: ["crm", "count", filters.search, filters.foodCategory, filters.beverageCategory, filters.outletId],
+    queryKey: ["crm", "count", filters.search, filters.foodCategory, filters.beverageCategory, filters.outletId, filters.status],
     queryFn: async () => {
       if (typeof (apiCustomers as any)?.totalCount === "number") {
         return (apiCustomers as any).totalCount;
@@ -250,6 +252,7 @@ export default function CrmPage() {
 
   const exactAttachedTotal = typeof (apiCustomers as any)?.totalCount === "number" ? (apiCustomers as any).totalCount : undefined;
   const totalCount = exactAttachedTotal ?? (isCountingError ? 6500 : (totalCustomers ?? (apiCustomers?.length || 0)));
+  const exactAttachedNewCount = typeof (apiCustomers as any)?.totalNewCount === "number" ? (apiCustomers as any).totalNewCount : undefined;
   const isPageLoading = isLoading;
 
   const customers = apiCustomers || [];
@@ -521,7 +524,10 @@ export default function CrmPage() {
       </div>
 
       {/* Stat cards */}
-      <SummaryCards total={totalCount} isLoading={isPageLoading} isCounting={isCounting} />
+      {(() => {
+        const activeNewCount = exactAttachedNewCount ?? (enrichedCustomers?.filter(c => c.status === "New").length || 0);
+        return <SummaryCards total={totalCount} newGuestsCount={activeNewCount} isLoading={isPageLoading} isCounting={isCounting} />;
+      })()}
 
       {/* Filter bar */}
       <Card>

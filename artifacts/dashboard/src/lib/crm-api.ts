@@ -29,6 +29,19 @@ function getBasicAuthHeader(): string {
 
 export type CustomerStatus = "VIP" | "Regular" | "New";
 
+export function computeCustomerStatus(totalVisits: number, lastVisitDate?: string | null): CustomerStatus {
+  if (totalVisits <= 3) return "New";
+  if (lastVisitDate) {
+    const ts = new Date(lastVisitDate).getTime();
+    if (!isNaN(ts)) {
+      const diffDays = (Date.now() - ts) / (1000 * 60 * 60 * 24);
+      if (diffDays <= 90) return "New";
+    }
+  }
+  if (totalVisits > 20) return "VIP";
+  return "Regular";
+}
+
 export interface Outlet {
   id: string;
   name: string;
@@ -109,6 +122,7 @@ export interface ListCustomersParams {
   outletId?: string;
   take?: number;
   skip?: number;
+  status?: string;
 }
 
 // ─── Vsoft raw types ──────────────────────────────────────────────────────────
@@ -119,6 +133,7 @@ interface VsoftResponse<T> {
   data: T;
   total?: number;
   count?: number;
+  total_new?: number;
 }
 
 interface VsoftMember {
@@ -231,7 +246,7 @@ function mapVsoftMember(m: VsoftMember): CustomerListItem {
     fullName,
     phone,
     email: m.email || "",
-    status: "Regular", // Vsoft doesn't have status categories
+    status: computeCustomerStatus(totalVisits, lastVisitDate),
     totalVisits,
     lastVisitDate,
     totalSpending,
@@ -321,6 +336,7 @@ export async function listCustomers(
     qs.set("outlet", params.outletId); // we send both just to be safe
     qs.set("primary_outlet_code", params.outletId); // Just in case
   }
+  if (params.status) qs.set("status", params.status);
   qs.set("take", String(params.take ?? 50)); // Max 50
   qs.set("skip", String(params.skip ?? 0));
 
@@ -329,6 +345,9 @@ export async function listCustomers(
   const items = (resp.data ?? []).map(mapVsoftMember);
   if (typeof resp.total === "number") {
     (items as any).totalCount = resp.total;
+  }
+  if (typeof resp.total_new === "number") {
+    (items as any).totalNewCount = resp.total_new;
   }
   return items;
 }
@@ -372,7 +391,7 @@ export function mapInsightToListItem(
     fullName:          (insight.customer_name || "").trim() || "(No Name)",
     phone:             insight.phone || insight.phone_number || "",
     email:             insight.email || "",
-    status:            (insight.status as any) || "Regular",
+    status:            computeCustomerStatus(Number(insight.total_visit) || 0, insight.last_visit),
     totalVisits:       Number(insight.total_visit) || 0,
     lastVisitDate:     insight.last_visit || "",
     totalSpending,
@@ -444,6 +463,7 @@ export function mergeInsightsIntoMembers(
       totalSpending,
       totalVisits,
       lastVisitDate,
+      status:            computeCustomerStatus(totalVisits, lastVisitDate),
       primaryOutletId:   rawOutlet,
       primaryOutletName,
       foodPreferences:   foodPrefs,
