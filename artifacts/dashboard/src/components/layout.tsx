@@ -11,16 +11,18 @@ import {
   Users,
   Shield,
   UtensilsCrossed,
-  Music2
+  Music2,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const navItems = [
   { href: "/home", label: "Overview", icon: LayoutDashboard },
   { href: "/crm", label: "CRM", icon: Users },
+  { href: "/ladies", label: "Ladies", icon: Sparkles },
   { href: "/banners", label: "Banners", icon: ImageIcon },
   { href: "/outlets", label: "Outlets", icon: Store },
   { href: "/gallery", label: "Gallery", icon: Images },
@@ -29,15 +31,26 @@ const navItems = [
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const [location] = useLocation();
-  const { user, logout, isFnbAdmin, isEntertainmentAdmin } = useAuth();
+  const [location, setLocation] = useLocation();
+  const { user, logout, isFnbAdmin, isEntertainmentAdmin, isKaraokeAdmin } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+  useEffect(() => {
+    if (isKaraokeAdmin && !location.startsWith("/ladies")) {
+      setLocation("/ladies");
+    }
+  }, [isKaraokeAdmin, location, setLocation]);
 
   const NavLinks = () => (
     <nav className="space-y-1">
       {navItems
-        .filter((item) => !item.superAdminOnly || user?.role === "super_admin")
+        .filter((item) => {
+          if (user?.role === "admin_karaoke") {
+            return item.href === "/ladies";
+          }
+          return !item.superAdminOnly || user?.role === "super_admin";
+        })
         .map((item) => {
           const isActive = location.startsWith(item.href);
           const Icon = item.icon;
@@ -66,9 +79,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-background flex flex-col md:flex-row">
       {/* Mobile Header */}
       <header className="md:hidden flex items-center justify-between p-4 border-b border-border bg-card">
-        <div className="flex items-center gap-2">
-          <img src={`${window.location.origin}${basePath}/logo.svg`} alt="Spice Collective" className="h-8 w-8 rounded-md" />
-          <span className="font-semibold">Spice Collective</span>
+        <div className="flex items-center gap-2.5">
+          <div className="bg-white/95 px-2 py-1 rounded-lg shadow-sm border border-white/20 shrink-0 flex items-center justify-center">
+            <img src={`${window.location.origin}${basePath}/logo-atoz.png`} alt="AtoZ Group" className="h-7 w-auto object-contain" />
+          </div>
+          <span className="font-semibold text-foreground">AtoZ Group</span>
         </div>
         <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
           <SheetTrigger asChild>
@@ -79,7 +94,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </SheetTrigger>
           <SheetContent side="left" className="w-[280px] p-0 flex flex-col">
             <div className="p-6">
-              <img src={`${window.location.origin}${basePath}/logo.svg`} alt="Spice Collective" className="h-10 w-10 rounded-xl shadow-sm mb-6" />
+              <div className="bg-white/95 px-3 py-2 rounded-xl shadow-sm border border-white/20 inline-flex items-center justify-center mb-6">
+                <img src={`${window.location.origin}${basePath}/logo-atoz.png`} alt="AtoZ Group" className="h-11 w-auto object-contain" />
+              </div>
               <NavLinks />
             </div>
             <div className="mt-auto p-4 border-t border-border bg-card/50">
@@ -96,6 +113,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       <span className="inline-flex items-center gap-1 text-orange-500"><UtensilsCrossed className="w-3 h-3" /> F&B Group</span>
                     ) : isEntertainmentAdmin ? (
                       <span className="inline-flex items-center gap-1 text-purple-500"><Music2 className="w-3 h-3" /> Entertainment Group</span>
+                    ) : isKaraokeAdmin ? (
+                      <span className="inline-flex items-center gap-1 text-rose-500"><Sparkles className="w-3 h-3" /> Karaoke Group</span>
                     ) : (
                       user?.email || "System Admin"
                     )}
@@ -115,8 +134,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <aside className="hidden md:flex w-64 flex-col border-r border-border bg-sidebar h-screen sticky top-0">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-8 px-2">
-            <img src={`${window.location.origin}${basePath}/logo.svg`} alt="Spice Collective" className="h-8 w-8 rounded-lg shadow-sm" />
-            <span className="font-bold text-lg tracking-tight text-sidebar-foreground">Spice Admin</span>
+            <div className="bg-white/95 px-2.5 py-1.5 rounded-xl shadow-sm border border-white/20 shrink-0 flex items-center justify-center">
+              <img src={`${window.location.origin}${basePath}/logo-atoz.png`} alt="AtoZ Group" className="h-9 w-auto object-contain" />
+            </div>
+            <span className="font-bold text-lg tracking-tight text-sidebar-foreground">AtoZ Group</span>
           </div>
           <NavLinks />
         </div>
@@ -135,6 +156,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <span className="inline-flex items-center gap-1 text-orange-400"><UtensilsCrossed className="w-3 h-3" /> F&B Group</span>
                 ) : isEntertainmentAdmin ? (
                   <span className="inline-flex items-center gap-1 text-purple-400"><Music2 className="w-3 h-3" /> Entertainment Group</span>
+                ) : isKaraokeAdmin ? (
+                  <span className="inline-flex items-center gap-1 text-rose-400"><Sparkles className="w-3 h-3" /> Karaoke Group</span>
                 ) : (
                   user?.email || "System Admin"
                 )}

@@ -27,8 +27,12 @@ export default function SignInPage() {
     setError(null);
 
     try {
-      await login(username, password);
-      setLocation("/home");
+      const loggedInUser = await login(username, password);
+      if (loggedInUser?.role === "admin_karaoke") {
+        setLocation("/ladies");
+      } else {
+        setLocation("/home");
+      }
     } catch (err: any) {
       setError(err.message || "Invalid username or password.");
     } finally {
@@ -43,13 +47,17 @@ export default function SignInPage() {
       <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] rounded-full bg-red-850/10 blur-[120px] pointer-events-none" />
 
       <div className="w-full max-w-md relative z-10 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-3">
           <div className="flex justify-center mb-2">
-            <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30 shadow-inner">
-              <Lock className="w-6 h-6 text-primary" />
+            <div className="bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-2xl border border-white/20 flex items-center justify-center transition-transform hover:scale-105 duration-300">
+              <img 
+                src={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/logo-atoz.png`} 
+                alt="AtoZ Group Logo" 
+                className="h-24 w-auto object-contain" 
+              />
             </div>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white">Spice Collective</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight text-white">AtoZ Group</h1>
           <p className="text-zinc-400 font-medium">Dashboard Administration</p>
         </div>
 

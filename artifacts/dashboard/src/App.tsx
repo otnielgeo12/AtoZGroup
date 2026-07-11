@@ -17,6 +17,10 @@ import SiteInfoPage from "./pages/site-info";
 import CrmPage from "./pages/crm/index";
 import CrmDetailPage from "./pages/crm/detail";
 import UserManagementPage from "./pages/users";
+import LadiesPage from "./pages/ladies/index";
+import LadiesOutletPage from "./pages/ladies/outlet";
+import LadiesInRoomPage from "./pages/ladies/in-room";
+import AddLadyPage from "./pages/ladies/add";
 import { Layout } from "./components/layout";
 import { RequireAuth, RequireSuperAdmin } from "./components/auth-helpers";
 
@@ -115,6 +119,46 @@ function AppRouter() {
         <RequireAuth>
           <Layout>
             <CrmDetailPage />
+          </Layout>
+        </RequireAuth>
+      </Route>
+
+      <Route path="/ladies">
+        <RequireAuth>
+          <Layout>
+            <LadiesPage />
+          </Layout>
+        </RequireAuth>
+      </Route>
+
+      <Route path="/ladies/:outlet/in-room">
+        <RequireAuth>
+          <Layout>
+            <LadiesInRoomPage />
+          </Layout>
+        </RequireAuth>
+      </Route>
+
+      <Route path="/ladies/:outlet/add">
+        <RequireAuth>
+          <Layout>
+            <AddLadyPage />
+          </Layout>
+        </RequireAuth>
+      </Route>
+
+      <Route path="/ladies/:outlet/edit/:id">
+        <RequireAuth>
+          <Layout>
+            <AddLadyPage />
+          </Layout>
+        </RequireAuth>
+      </Route>
+
+      <Route path="/ladies/:outlet">
+        <RequireAuth>
+          <Layout>
+            <LadiesOutletPage />
           </Layout>
         </RequireAuth>
       </Route>

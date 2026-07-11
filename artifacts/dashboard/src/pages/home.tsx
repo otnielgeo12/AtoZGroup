@@ -3,12 +3,27 @@ import { Store, Image as ImageIcon, UtensilsCrossed, Images, ArrowRight } from "
 import { getImageUrl } from "@/lib/assets";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
+import { useAuth } from "@/lib/auth-context";
+import { useEffect } from "react";
 
 export default function HomePage() {
+  const { isKaraokeAdmin } = useAuth();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (isKaraokeAdmin) {
+      setLocation("/ladies");
+    }
+  }, [isKaraokeAdmin, setLocation]);
+
   const { data: summary, isLoading, isError } = useGetDashboardSummary();
+
+  if (isKaraokeAdmin) {
+    return null;
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">

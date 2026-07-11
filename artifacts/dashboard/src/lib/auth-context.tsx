@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 
-export type AdminRole = "super_admin" | "admin" | "admin_fnb" | "admin_entertainment";
-export type AdminGroup = "fnb" | "entertainment" | null;
+export type AdminRole = "super_admin" | "admin" | "admin_fnb" | "admin_entertainment" | "admin_karaoke";
+export type AdminGroup = "fnb" | "entertainment" | "karaoke" | null;
 
 interface User {
   id: number;
@@ -14,12 +14,13 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<User>;
   logout: () => void;
   isAuthenticated: boolean;
   isSuperAdmin: boolean;
   isFnbAdmin: boolean;
   isEntertainmentAdmin: boolean;
+  isKaraokeAdmin: boolean;
   adminGroup: AdminGroup;
   getToken: () => Promise<string | null>;
 }
@@ -30,6 +31,7 @@ export function getAdminGroup(role: AdminRole | undefined | null): AdminGroup {
   if (!role) return null;
   if (role === "admin_fnb") return "fnb";
   if (role === "admin_entertainment") return "entertainment";
+  if (role === "admin_karaoke") return "karaoke";
   return null;
 }
 
@@ -109,6 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("auth_user", JSON.stringify(data.user));
     setToken(data.token);
     setUser(data.user);
+    return data.user;
   };
 
   const adminGroup = getAdminGroup(user?.role);
@@ -123,6 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isSuperAdmin: !!user && user.role === "super_admin",
     isFnbAdmin: !!user && user.role === "admin_fnb",
     isEntertainmentAdmin: !!user && user.role === "admin_entertainment",
+    isKaraokeAdmin: !!user && user.role === "admin_karaoke",
     adminGroup,
     getToken: async () => token,
   };

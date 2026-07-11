@@ -129,7 +129,7 @@ export default function SiteInfoPage() {
                     <FormItem>
                       <FormLabel>Brand Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="Spice Collective" {...field} />
+                        <Input placeholder="AtoZ Group Semarang" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -193,7 +193,7 @@ export default function SiteInfoPage() {
                         <FormControl>
                           <div className="relative">
                             <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="hello@spicecollective.com" className="pl-9" {...field} value={field.value || ""} />
+                            <Input placeholder="info@atozgroupsemarang.com" className="pl-9" {...field} value={field.value || ""} />
                           </div>
                         </FormControl>
                         <FormMessage />
@@ -228,7 +228,7 @@ export default function SiteInfoPage() {
                       <FormControl>
                         <div className="relative">
                           <Instagram className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                          <Input placeholder="https://instagram.com/spicecollective" className="pl-9" {...field} value={field.value || ""} />
+                          <Input placeholder="https://instagram.com/atozgroupsemarang" className="pl-9" {...field} value={field.value || ""} />
                         </div>
                       </FormControl>
                       <FormMessage />

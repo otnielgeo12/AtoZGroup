@@ -35,7 +35,7 @@ interface AdminUser {
   id: number;
   username: string;
   email: string | null;
-  role: "super_admin" | "admin" | "admin_fnb" | "admin_entertainment";
+  role: "super_admin" | "admin" | "admin_fnb" | "admin_entertainment" | "admin_karaoke";
   createdAt: string;
   updatedAt: string;
 }
@@ -55,7 +55,7 @@ export default function UserManagementPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"super_admin" | "admin" | "admin_fnb" | "admin_entertainment">("admin_fnb");
+  const [role, setRole] = useState<"super_admin" | "admin" | "admin_fnb" | "admin_entertainment" | "admin_karaoke">("admin_fnb");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const apiUrl = import.meta.env.VITE_API_URL || "";
@@ -202,7 +202,7 @@ export default function UserManagementPage() {
             <DialogHeader>
               <DialogTitle>Create Admin Account</DialogTitle>
               <DialogDescription className="text-zinc-400">
-                Register a new administrator for the Spice Collective.
+                Register a new administrator for AtoZ Group.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4 py-4">
@@ -258,6 +258,7 @@ export default function UserManagementPage() {
                   <SelectContent className="bg-zinc-950 border-zinc-800 text-white">
                     <SelectItem value="admin_fnb">F&amp;B Admin</SelectItem>
                     <SelectItem value="admin_entertainment">Entertainment Admin</SelectItem>
+                    <SelectItem value="admin_karaoke">Karaoke Admin</SelectItem>
                     <SelectItem value="super_admin">Super Admin</SelectItem>
                   </SelectContent>
                 </Select>
@@ -325,7 +326,9 @@ export default function UserManagementPage() {
                                 ? "bg-orange-500/10 text-orange-500 border border-orange-500/25"
                                 : admin.role === "admin_entertainment"
                                   ? "bg-purple-500/10 text-purple-500 border border-purple-500/25"
-                                  : "bg-blue-500/10 text-blue-500 border border-blue-500/25"
+                                  : admin.role === "admin_karaoke"
+                                    ? "bg-rose-500/10 text-rose-500 border border-rose-500/25"
+                                    : "bg-blue-500/10 text-blue-500 border border-blue-500/25"
                           }`}>
                             <Shield className="w-3 h-3" />
                             {admin.role === "super_admin" 
@@ -334,7 +337,9 @@ export default function UserManagementPage() {
                                 ? "F&B Admin"
                                 : admin.role === "admin_entertainment"
                                   ? "Entertainment Admin"
-                                  : "Regular Admin"}
+                                  : admin.role === "admin_karaoke"
+                                    ? "Karaoke Admin"
+                                    : "Regular Admin"}
                           </span>
                         </TableCell>
                         <TableCell className="hidden md:table-cell text-muted-foreground">
@@ -432,6 +437,7 @@ export default function UserManagementPage() {
                 <SelectContent className="bg-zinc-950 border-zinc-800 text-white">
                   <SelectItem value="admin_fnb">F&amp;B Admin</SelectItem>
                   <SelectItem value="admin_entertainment">Entertainment Admin</SelectItem>
+                  <SelectItem value="admin_karaoke">Karaoke Admin</SelectItem>
                   <SelectItem value="super_admin">Super Admin</SelectItem>
                 </SelectContent>
               </Select>

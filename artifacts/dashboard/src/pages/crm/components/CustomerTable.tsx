@@ -101,7 +101,7 @@ export function CustomerTable({
   selectedIds, onToggle, onToggleAll,
 }: CustomerTableProps) {
   const paginated = customers;
-  const COL_COUNT = 12;
+  const COL_COUNT = 11;
   const allOnPageSelected = paginated.length > 0 && paginated.every(c => selectedIds.has(c.id));
   const someOnPageSelected = paginated.some(c => selectedIds.has(c.id));
 
@@ -124,7 +124,6 @@ export function CustomerTable({
               <TableHead className="min-w-[60px]">Code</TableHead>
               <TableHead className="min-w-[180px]">Customer</TableHead>
               <TableHead className="min-w-[180px]">Contact</TableHead>
-              <TableHead className="min-w-[120px]">Category</TableHead>
               <TableHead className="min-w-[160px]">Outlet</TableHead>
               <TableHead className="min-w-[140px]">Food Prefs</TableHead>
               <TableHead className="min-w-[140px]">Beverage Prefs</TableHead>
@@ -199,7 +198,7 @@ export function CustomerTable({
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <div className="flex flex-col gap-0.5">
                       <span className="flex items-center gap-1.5 text-xs">
-                        <Phone className="w-3 h-3 text-muted-foreground shrink-0" />{c.phone}
+                        <Phone className="w-3 h-3 text-muted-foreground shrink-0" />{c.phone || "—"}
                       </span>
                       {c.email && (
                         <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -208,13 +207,6 @@ export function CustomerTable({
                         </span>
                       )}
                     </div>
-                  </TableCell>
-
-                  {/* Category */}
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-muted text-muted-foreground border border-border">
-                      {c.categoryName && c.categoryName !== "—" ? c.categoryName : "Unknown"}
-                    </span>
                   </TableCell>
 
                   {/* Outlet */}

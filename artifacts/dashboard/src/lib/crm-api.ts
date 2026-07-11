@@ -29,16 +29,23 @@ function getBasicAuthHeader(): string {
 
 export type CustomerStatus = "VIP" | "Regular" | "New";
 
-export function computeCustomerStatus(totalVisits: number, lastVisitDate?: string | null): CustomerStatus {
-  if (totalVisits <= 3) return "New";
-  if (lastVisitDate) {
+export function computeCustomerStatus(totalVisits: number, lastVisitDate?: string | null, backendStatus?: string | null): CustomerStatus {
+  if (backendStatus === "VIP" || backendStatus === "Regular" || backendStatus === "New") {
+    if (backendStatus === "New" && totalVisits > 3) {
+      return totalVisits > 20 ? "VIP" : "Regular";
+    }
+    return backendStatus as CustomerStatus;
+  }
+  if (totalVisits > 20) return "VIP";
+  if (totalVisits > 3) return "Regular";
+  if (totalVisits >= 1 && totalVisits <= 3) return "New";
+  if (lastVisitDate && totalVisits <= 3) {
     const ts = new Date(lastVisitDate).getTime();
     if (!isNaN(ts)) {
       const diffDays = (Date.now() - ts) / (1000 * 60 * 60 * 24);
-      if (diffDays <= 90) return "New";
+      if (diffDays <= 90 && totalVisits <= 3) return "New";
     }
   }
-  if (totalVisits > 20) return "VIP";
   return "Regular";
 }
 
@@ -246,7 +253,7 @@ function mapVsoftMember(m: VsoftMember): CustomerListItem {
     fullName,
     phone,
     email: m.email || "",
-    status: computeCustomerStatus(totalVisits, lastVisitDate),
+    status: computeCustomerStatus(totalVisits, lastVisitDate, (m as any).status),
     totalVisits,
     lastVisitDate,
     totalSpending,
@@ -391,7 +398,7 @@ export function mapInsightToListItem(
     fullName:          (insight.customer_name || "").trim() || "(No Name)",
     phone:             insight.phone || insight.phone_number || "",
     email:             insight.email || "",
-    status:            computeCustomerStatus(Number(insight.total_visit) || 0, insight.last_visit),
+    status:            computeCustomerStatus(Number(insight.total_visit) || 0, insight.last_visit, insight.status),
     totalVisits:       Number(insight.total_visit) || 0,
     lastVisitDate:     insight.last_visit || "",
     totalSpending,
@@ -463,7 +470,7 @@ export function mergeInsightsIntoMembers(
       totalSpending,
       totalVisits,
       lastVisitDate,
-      status:            computeCustomerStatus(totalVisits, lastVisitDate),
+      status:            computeCustomerStatus(totalVisits, lastVisitDate, insight.status || m.status),
       primaryOutletId:   rawOutlet,
       primaryOutletName,
       foodPreferences:   foodPrefs,
