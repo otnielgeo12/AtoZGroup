@@ -434,8 +434,10 @@ export function mergeInsightsIntoMembers(
     const lastVisitDate    = insight.last_visit             || m.lastVisitDate;
     const rawOutlet        = insight.outlet || "";
     const primaryOutletName = outletMap?.get(rawOutlet) || rawOutlet || m.primaryOutletName;
-    const foodPrefs        = parsePreferences(insight.food_preferences) || m.foodPreferences;
-    const bevPrefs         = parsePreferences(insight.beverage_preferences) || m.beveragePreferences;
+    const parsedFood       = parsePreferences(insight.food_preferences);
+    const parsedBev        = parsePreferences(insight.beverage_preferences);
+    const foodPrefs        = parsedFood.length > 0 ? parsedFood : m.foodPreferences;
+    const bevPrefs         = parsedBev.length > 0 ? parsedBev : m.beveragePreferences;
 
     return {
       ...m,

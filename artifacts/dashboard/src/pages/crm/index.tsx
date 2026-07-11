@@ -317,15 +317,15 @@ export default function CrmPage() {
       // by checking food_preferences and beverage_preferences (which contain the sub_codes)
       if (filters.foodCategory || filters.beverageCategory) {
         filteredInsights = filteredInsights.filter(insight => {
-          const foodPrefs = insight.food_preferences || "";
-          const bevPrefs = insight.beverage_preferences || "";
+          const foodPrefs = String(insight.food_preferences || "").toUpperCase();
+          const bevPrefs = String(insight.beverage_preferences || "").toUpperCase();
           
           let matches = true;
           if (filters.foodCategory) {
-            matches = matches && foodPrefs.includes(filters.foodCategory);
+            matches = matches && foodPrefs.includes(filters.foodCategory.toUpperCase());
           }
           if (filters.beverageCategory) {
-            matches = matches && bevPrefs.includes(filters.beverageCategory);
+            matches = matches && bevPrefs.includes(filters.beverageCategory.toUpperCase());
           }
           return matches;
         });
@@ -334,23 +334,10 @@ export default function CrmPage() {
       return filteredInsights.map(r => mapInsightToListItem(r, outletMap));
     }
     // Default: merge insights into member list to enrich existing rows
+    // Note: customers from listCustomers (/api/v1/members) are ALREADY filtered and paginated precisely by SQL on the backend.
     let finalCustomers = customers;
     if (insightsData) {
       finalCustomers = mergeInsightsIntoMembers(customers, insightsData, outletMap);
-    }
-    
-    // Apply local filters if the backend didn't (or couldn't) do it perfectly
-    if (filters.foodCategory || filters.beverageCategory) {
-      finalCustomers = finalCustomers.filter(c => {
-        let matches = true;
-        if (filters.foodCategory) {
-          matches = matches && c.foodPreferences.includes(filters.foodCategory);
-        }
-        if (filters.beverageCategory) {
-          matches = matches && c.beveragePreferences.includes(filters.beverageCategory);
-        }
-        return matches;
-      });
     }
     
     return finalCustomers;
