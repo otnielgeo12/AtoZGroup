@@ -74,6 +74,8 @@ export interface CustomerListItem {
   city: string | null;
   province: string | null;
   pointBalance: number;
+  lastEvent?: string;
+  favoriteItems?: Array<{ name: string; count: number }>;
 }
 
 export interface CustomerDetail extends CustomerListItem {
@@ -166,6 +168,8 @@ interface VsoftMember {
   last_visit?: string;
   food_preferences?: string;
   beverage_preferences?: string;
+  last_event?: string;
+  favorite_items?: string | Array<{ name: string; count: number }>;
 }
 
 export interface VsoftInsight {
@@ -267,6 +271,10 @@ function mapVsoftMember(m: VsoftMember): CustomerListItem {
     city: m.city || null,
     province: m.province || null,
     pointBalance: Number(m.point_balance) || Number((m as any).points) || 0,
+    lastEvent: m.last_event || (m as any).events_attended || "-",
+    favoriteItems: typeof m.favorite_items === 'string' 
+      ? (() => { try { return JSON.parse(m.favorite_items || '[]'); } catch(e) { return []; } })()
+      : Array.isArray(m.favorite_items) ? m.favorite_items : [],
   };
 }
 

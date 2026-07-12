@@ -8,7 +8,7 @@ import { z } from "zod";
 import { format } from "date-fns";
 import {
   ArrowLeft, Users, Phone, Mail, Crown, UserCheck, UserPlus,
-  Coins, MapPin, Pencil, Music,
+  Coins, MapPin, Pencil, Music, Utensils,
   CheckCircle2, XCircle, AlertCircle, CalendarDays, ShoppingBag, Receipt,
 } from "lucide-react";
 
@@ -299,6 +299,72 @@ export default function CrmDetailPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Top 3 Favorite Items & Events Attended */}
+          <div className="grid gap-6 md:grid-cols-2 mt-6">
+            <Card className="border-primary/20 shadow-sm bg-gradient-to-br from-background to-primary/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2 text-primary">
+                  <Utensils className="w-4 h-4 text-primary" /> Top 3 Favorite Items
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Rekomendasi favorit untuk mempermudah staf saat pelanggan datang kembali.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {customer.favoriteItems && customer.favoriteItems.length > 0 ? (
+                  <div className="space-y-3">
+                    {customer.favoriteItems.slice(0, 3).map((item, i) => (
+                      <div key={i} className="flex items-center justify-between p-2.5 rounded-lg bg-background/80 border border-border/60 shadow-xs">
+                        <div className="flex items-center gap-2.5">
+                          <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary font-bold text-xs shrink-0">
+                            #{i + 1}
+                          </span>
+                          <span className="font-medium text-sm text-foreground">{item.name}</span>
+                        </div>
+                        <Badge variant="secondary" className="font-mono text-xs">
+                          {item.count}x dipesan
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-muted-foreground bg-muted/20 rounded-lg border border-dashed border-border/60">
+                    <p className="text-xs font-medium">Belum ada item favorit tercatat</p>
+                    <p className="text-[11px] opacity-70 mt-0.5">Akan otomatis terhitung dari riwayat pesanan.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-amber-500/20 shadow-sm bg-gradient-to-br from-background to-amber-500/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                  <Crown className="w-4 h-4 text-amber-500" /> Event Attendance History
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Daftar event atau festival spesial AtoZ yang pernah diikuti.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {customer.lastEvent && customer.lastEvent !== "-" ? (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {customer.lastEvent.split(",").map((ev, i) => (
+                      <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 shadow-2xs">
+                        <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                        {ev.trim()}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-muted-foreground bg-muted/20 rounded-lg border border-dashed border-border/60">
+                    <p className="text-xs font-medium">Belum pernah mengikuti event (-)</p>
+                    <p className="text-[11px] opacity-70 mt-0.5">Seperti Whisky Carnival, Wine Carnival, Cocktails Week, dll.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* History Tab */}

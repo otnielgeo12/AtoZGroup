@@ -101,7 +101,7 @@ export function CustomerTable({
   selectedIds, onToggle, onToggleAll,
 }: CustomerTableProps) {
   const paginated = customers;
-  const COL_COUNT = 11;
+  const COL_COUNT = 13;
   const allOnPageSelected = paginated.length > 0 && paginated.every(c => selectedIds.has(c.id));
   const someOnPageSelected = paginated.some(c => selectedIds.has(c.id));
 
@@ -125,11 +125,13 @@ export function CustomerTable({
               <TableHead className="min-w-[180px]">Customer</TableHead>
               <TableHead className="min-w-[180px]">Contact</TableHead>
               <TableHead className="min-w-[160px]">Outlet</TableHead>
+              <TableHead className="min-w-[150px]">Events</TableHead>
               <TableHead className="min-w-[140px]">Food Prefs</TableHead>
               <TableHead className="min-w-[140px]">Beverage Prefs</TableHead>
               <TableHead className="text-right min-w-[120px]">Spending</TableHead>
               <TableHead className="text-right min-w-[80px]">Visits</TableHead>
               <TableHead className="text-right min-w-[90px]">Points</TableHead>
+              <TableHead className="min-w-[100px]">Status</TableHead>
               <TableHead className="text-right pr-4 min-w-[90px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -224,6 +226,17 @@ export function CustomerTable({
                         </div>
                       )}
                     </div>
+                  </TableCell>
+
+                  {/* Events */}
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    {c.lastEvent && c.lastEvent !== "-" ? (
+                      <span className="text-xs font-medium text-amber-800 bg-amber-100 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 px-2 py-0.5 rounded-full inline-block truncate max-w-[150px]" title={c.lastEvent}>
+                        {c.lastEvent}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground font-mono">-</span>
+                    )}
                   </TableCell>
 
                   {/* Food Preferences */}
