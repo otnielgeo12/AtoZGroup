@@ -20,7 +20,7 @@ let baseUrl = "";
 let authTokenGetter: AuthTokenGetter | null = null;
 
 export function setBaseUrl(url: string | null): void {
-  baseUrl = url || "";
+  baseUrl = (url || "").replace(/["'\r\n\t]+/g, "").trim().replace(/\/$/, "");
 }
 
 export function setAuthTokenGetter(getter: AuthTokenGetter | null): void {
@@ -31,7 +31,8 @@ export async function customFetch<T = unknown>(
   url: string | URL,
   options: CustomFetchOptions = {},
 ): Promise<T> {
-  const fullUrl = `${baseUrl}${url}`;
+  const cleanPath = typeof url === "string" ? url.replace(/["'\r\n\t]+/g, "").trim() : url.toString();
+  const fullUrl = `${baseUrl}${cleanPath}`;
   
   const headers = new Headers(options.headers);
   if (authTokenGetter) {

@@ -35,6 +35,11 @@ export function getAdminGroup(role: AdminRole | undefined | null): AdminGroup {
   return null;
 }
 
+function cleanUrl(url?: string): string {
+  if (!url) return "";
+  return url.replace(/["'\r\n\t]+/g, "").trim().replace(/\/$/, "");
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem("auth_token"));
   const [user, setUser] = useState<User | null>(() => {
@@ -66,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || "";
+        const apiUrl = cleanUrl(import.meta.env.VITE_API_URL);
         const response = await fetch(`${apiUrl}/api/auth/me`, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -92,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token]);
 
   const login = async (username: string, password: string) => {
-    const apiUrl = import.meta.env.VITE_API_URL || "";
+    const apiUrl = cleanUrl(import.meta.env.VITE_API_URL);
     const response = await fetch(`${apiUrl}/api/auth/login`, {
       method: "POST",
       headers: {

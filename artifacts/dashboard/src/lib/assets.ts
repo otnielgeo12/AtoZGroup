@@ -6,7 +6,8 @@ export function getImageUrl(imagePath?: string | null, width?: number): string {
     return imagePath;
   }
 
-  const baseUrl = (import.meta as any).env?.VITE_API_URL || "";
+  const rawBaseUrl = (import.meta as any).env?.VITE_API_URL || "";
+  const baseUrl = rawBaseUrl.replace(/["'\r\n\t]+/g, "").trim().replace(/\/$/, "");
   const url = `${baseUrl}/api/storage${imagePath}`;
   
   // Append width parameter if provided to trigger server-side resizing

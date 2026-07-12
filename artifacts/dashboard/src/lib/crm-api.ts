@@ -10,19 +10,37 @@
 
 // ─── Config ─────────────────────────────────────────────────────────────────────
 
+function cleanEnvString(val?: string): string {
+  if (!val) return "";
+  return val.replace(/["'\r\n\t]+/g, "").trim();
+}
+
 function getCrmBaseUrl(): string {
   if (import.meta.env.DEV) {
     return "/vsoft-api";
   }
-  const url = (import.meta as any).env?.VITE_CRM_API_URL ?? "";
+  const url = cleanEnvString((import.meta as any).env?.VITE_CRM_API_URL);
   return url.replace(/\/$/, "");
 }
 
+function safeBtoa(str: string): string {
+  try {
+    return btoa(str);
+  } catch (e) {
+    try {
+      return btoa(unescape(encodeURIComponent(str)));
+    } catch (e2) {
+      console.error("Base64 encoding error:", e2);
+      return "";
+    }
+  }
+}
+
 function getBasicAuthHeader(): string {
-  const username = (import.meta as any).env?.VITE_VSOFT_USERNAME ?? "";
-  const password = (import.meta as any).env?.VITE_VSOFT_PASSWORD ?? "";
+  const username = cleanEnvString((import.meta as any).env?.VITE_VSOFT_USERNAME);
+  const password = cleanEnvString((import.meta as any).env?.VITE_VSOFT_PASSWORD);
   if (!username) return "";
-  return `Basic ${btoa(`${username}:${password}`)}`;
+  return `Basic ${safeBtoa(`${username}:${password}`)}`;
 }
 
 // ─── Types ─────────────────────────────────────────────────────────────────────

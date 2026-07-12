@@ -58,7 +58,8 @@ export default function UserManagementPage() {
   const [role, setRole] = useState<"super_admin" | "admin" | "admin_fnb" | "admin_entertainment" | "admin_karaoke">("admin_fnb");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const apiUrl = import.meta.env.VITE_API_URL || "";
+  const rawApiUrl = import.meta.env.VITE_API_URL || "";
+  const apiUrl = rawApiUrl.replace(/["'\r\n\t]+/g, "").trim().replace(/\/$/, "");
 
   const fetchUsers = async () => {
     setIsLoading(true);

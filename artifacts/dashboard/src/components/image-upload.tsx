@@ -119,7 +119,8 @@ export function ImageUpload({ value, onChange, className }: ImageUploadProps) {
               // Also map the original filename in case the uploader uses it.
               pathMap.current[file.name] = res.objectPath;
 
-              const baseUrl = (import.meta as any).env?.VITE_API_URL || "";
+              const rawBaseUrl = (import.meta as any).env?.VITE_API_URL || "";
+              const baseUrl = rawBaseUrl.replace(/["'\r\n\t]+/g, "").trim().replace(/\/$/, "");
               const fullUploadUrl = `${baseUrl}${res.uploadURL}`;
 
               return {
