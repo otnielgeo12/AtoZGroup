@@ -573,8 +573,8 @@ export default function CrmPage() {
         onPage={setPage}
         onView={(c) => {
           const qs = new URLSearchParams();
-          if (insightStartDate) qs.set("startDate", insightStartDate);
-          if (insightEndDate) qs.set("endDate", insightEndDate);
+          if (filters.startDate) qs.set("startDate", filters.startDate);
+          if (filters.endDate) qs.set("endDate", filters.endDate);
           const qStr = qs.toString() ? `?${qs.toString()}` : "";
           setLocation(`/crm/${c.id}${qStr}`);
         }}
