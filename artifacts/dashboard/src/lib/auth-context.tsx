@@ -36,8 +36,12 @@ export function getAdminGroup(role: AdminRole | undefined | null): AdminGroup {
 }
 
 function cleanUrl(url?: string): string {
-  if (!url) return "";
-  return url.replace(/["'\r\n\t]+/g, "").trim().replace(/\/$/, "");
+  const raw = url || import.meta.env.VITE_CRM_API_URL || "https://apiclone.atozgroupsemarang.com";
+  const cleaned = raw.replace(/["'\r\n\t]+/g, "").trim().replace(/\/$/, "");
+  if (!cleaned || cleaned === "/" || cleaned.includes("dashboard.atozgroupsemarang.com")) {
+    return "https://apiclone.atozgroupsemarang.com";
+  }
+  return cleaned;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -79,7 +83,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
 
         if (response.ok) {
-          const userData = await response.json();
+          const resText = await response.text();
+          const userData = JSON.parse(resText);
           setUser(userData);
           localStorage.setItem("auth_user", JSON.stringify(userData));
         } else {
@@ -107,11 +112,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     if (!response.ok) {
-      const errData = await response.json().catch(() => ({ error: "Login failed" }));
+      const errText = await response.text();
+      let errData: any = { error: "Login failed" };
+      try {
+        errData = JSON.parse(errText);
+      } catch (e) {
+        errData = { error: errText && errText.includes("<!DOCTYPE") ? "Server API belum merespons format JSON (HTML Fallback terdeteksi)." : (errText || "Login failed") };
+      }
       throw new Error(errData.error || "Login failed");
     }
 
-    const data = await response.json();
+    const resText = await response.text();
+    let data: any;
+    try {
+      data = JSON.parse(resText);
+    } catch (e) {
+      throw new Error("Respons dari server bukan format JSON yang valid.");
+    }
     localStorage.setItem("auth_token", data.token);
     localStorage.setItem("auth_user", JSON.stringify(data.user));
     setToken(data.token);

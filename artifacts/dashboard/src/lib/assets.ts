@@ -6,8 +6,9 @@ export function getImageUrl(imagePath?: string | null, width?: number): string {
     return imagePath;
   }
 
-  const rawBaseUrl = (import.meta as any).env?.VITE_API_URL || "";
-  const baseUrl = rawBaseUrl.replace(/["'\r\n\t]+/g, "").trim().replace(/\/$/, "");
+  const rawBaseUrl = (import.meta as any).env?.VITE_API_URL || (import.meta as any).env?.VITE_CRM_API_URL || "https://apiclone.atozgroupsemarang.com";
+  const cleanedBaseUrl = rawBaseUrl.replace(/["'\r\n\t]+/g, "").trim().replace(/\/$/, "");
+  const baseUrl = (!cleanedBaseUrl || cleanedBaseUrl === "/" || cleanedBaseUrl.includes("dashboard.atozgroupsemarang.com")) ? "https://apiclone.atozgroupsemarang.com" : cleanedBaseUrl;
   const url = `${baseUrl}/api/storage${imagePath}`;
   
   // Append width parameter if provided to trigger server-side resizing
