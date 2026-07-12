@@ -571,8 +571,13 @@ export default function CrmPage() {
         pageSize={hasUserDates ? displayTotal : pageSize}
         total={displayTotal}
         onPage={setPage}
-        onPageSize={setPageSize}
-        onView={(c) => setLocation(`/crm/${c.id}`)}
+        onView={(c) => {
+          const qs = new URLSearchParams();
+          if (insightStartDate) qs.set("startDate", insightStartDate);
+          if (insightEndDate) qs.set("endDate", insightEndDate);
+          const qStr = qs.toString() ? `?${qs.toString()}` : "";
+          setLocation(`/crm/${c.id}${qStr}`);
+        }}
         onEdit={openEdit}
         selectedIds={selectedIds}
         onToggle={handleToggle}

@@ -110,6 +110,10 @@ export default function CrmDetailPage() {
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
 
+  const searchParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
+  const startDate = searchParams.get("startDate") || "";
+  const endDate = searchParams.get("endDate") || "";
+
   const { data: customer, isLoading, isError } = useQuery({
     queryKey: crmKeys.detail(id),
     queryFn: () => getCustomer(id, getToken),
@@ -117,8 +121,8 @@ export default function CrmDetailPage() {
   });
 
   const { data: historyItems = [], isLoading: isHistoryLoading } = useQuery({
-    queryKey: crmKeys.detailHistory(id, customer?.fullName, customer?.phone),
-    queryFn: () => getCustomerHistory(id, customer?.fullName, customer?.phone, getToken),
+    queryKey: crmKeys.detailHistory(id, customer?.fullName, customer?.phone, startDate, endDate),
+    queryFn: () => getCustomerHistory(id, customer?.fullName, customer?.phone, getToken, startDate, endDate),
     enabled: !!id && !!customer,
   });
 

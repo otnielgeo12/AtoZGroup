@@ -669,11 +669,15 @@ export async function getCustomerHistory(
   name: string = "",
   phone: string = "",
   _getToken?: () => Promise<string | null>,
+  startDate: string = "",
+  endDate: string = "",
 ): Promise<CustomerPurchaseItem[]> {
   const base = getCrmBaseUrl();
   const qs = new URLSearchParams();
   if (name) qs.set("name", name);
   if (phone) qs.set("phone", phone);
+  if (startDate) qs.set("start_date", startDate);
+  if (endDate) qs.set("end_date", endDate);
   try {
     const resp = await vsfRequest<VsoftResponse<CustomerPurchaseItem[]>>(
       `${base}/api/v1/members/${encodeURIComponent(code)}/history?${qs}`,
@@ -697,7 +701,7 @@ export const crmKeys = {
   list: (params: ListCustomersParams) => [...crmKeys.lists(), params] as const,
   details: () => [...crmKeys.all, "detail"] as const,
   detail: (code: string) => [...crmKeys.details(), code] as const,
-  detailHistory: (code: string, name?: string, phone?: string) => [...crmKeys.details(), code, "history", name, phone] as const,
+  detailHistory: (code: string, name?: string, phone?: string, startDate?: string, endDate?: string) => [...crmKeys.details(), code, "history", name, phone, startDate, endDate] as const,
   insights: (startDate: string, endDate: string) => [...crmKeys.all, "insights", startDate, endDate] as const,
 };
 
