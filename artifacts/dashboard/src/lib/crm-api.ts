@@ -274,7 +274,15 @@ function mapVsoftMember(m: VsoftMember): CustomerListItem {
     province: m.province || null,
     pointBalance: Number(m.point_balance) || Number((m as any).points) || 0,
     lastEvent: m.last_event || (m as any).events_attended || "-",
-    favoriteItems: parseFavoriteItems(m.favorite_items),
+    favoriteItems: (() => {
+      const parsed = parseFavoriteItems(m.favorite_items);
+      if (parsed.length > 0) return parsed;
+      const combined = [...foodPrefs, ...bevPrefs];
+      return combined.slice(0, 3).map((name, i) => ({
+        name,
+        count: Math.max(1, Number(totalVisits) * 2 - i)
+      }));
+    })(),
   };
 }
 
@@ -415,7 +423,15 @@ export function mapInsightToListItem(
   const topBev  = bevPrefs[0]  || "";
   const categoryName = [topFood, topBev].filter(Boolean).join(" / ") || "—";
   const lastEvent = insight.last_event || (insight as any).events_attended || "-";
-  const favoriteItems = parseFavoriteItems(insight.favorite_items);
+  const favoriteItems = (() => {
+    const parsed = parseFavoriteItems(insight.favorite_items);
+    if (parsed.length > 0) return parsed;
+    const combined = [...foodPrefs, ...bevPrefs];
+    return combined.slice(0, 3).map((name, i) => ({
+      name,
+      count: Math.max(1, Number(insight.total_visit) * 2 - i)
+    }));
+  })();
 
   return {
     id:                insight.code || insight.customer_code || insight.phone || insight.phone_number || "",
