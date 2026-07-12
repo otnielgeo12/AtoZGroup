@@ -95,29 +95,35 @@ export function WhatsAppModal({
         recipients: selectedCustomers,
         message,
         imageFile: imageFile ?? undefined,
+        imageUrl: imagePreview ?? undefined,
       };
 
+      let res = { success: true, message: "" };
       switch (brand) {
-        case "AtoZ":      await sendWhatsAppAtoZ(payload); break;
-        case "Bosa":      await sendWhatsAppBosa(payload); break;
-        case "Bodega":    await sendWhatsAppBodega(payload); break;
-        case "Lakers":    await sendWhatsAppLakers(payload); break;
-        case "Redhare":   await sendWhatsAppRedhare(payload); break;
-        case "Oombee":    await sendWhatsAppOombee(payload); break;
-        case "Shiraz":    await sendWhatsAppShiraz(payload); break;
-        case "District5": await sendWhatsAppDistrict5(payload); break;
-        case "Infinity":  await sendWhatsAppInfinity(payload); break;
+        case "AtoZ":      res = await sendWhatsAppAtoZ(payload); break;
+        case "Bosa":      res = await sendWhatsAppBosa(payload); break;
+        case "Bodega":    res = await sendWhatsAppBodega(payload); break;
+        case "Lakers":    res = await sendWhatsAppLakers(payload); break;
+        case "Redhare":   res = await sendWhatsAppRedhare(payload); break;
+        case "Oombee":    res = await sendWhatsAppOombee(payload); break;
+        case "Shiraz":    res = await sendWhatsAppShiraz(payload); break;
+        case "District5": res = await sendWhatsAppDistrict5(payload); break;
+        case "Infinity":  res = await sendWhatsAppInfinity(payload); break;
       }
 
-      alert(
-        `[${brand}] WhatsApp API belum terhubung (masih dalam tahap pembuatan / kosong).\n\nPesan siap dikirim ke ${selectedCustomers.length} customer melalui akun ${brand}.`
-      );
+      if (brand === "AtoZ") {
+        alert(`[${brand}] ✅ ${res.message || `Berhasil mengirim pesan WhatsApp ke ${selectedCustomers.length} customer.`}`);
+      } else {
+        alert(
+          `[${brand}] WhatsApp API belum terhubung (masih dalam tahap pembuatan / kosong).\n\nPesan siap dikirim ke ${selectedCustomers.length} customer melalui akun ${brand}.`
+        );
+      }
       setMessage("");
       removeImage();
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Failed to send WhatsApp for ${brand}:`, error);
-      alert(`Gagal mengirim pesan untuk ${brand}.`);
+      alert(error?.message || `Gagal mengirim pesan untuk ${brand}.`);
     } finally {
       setSendingBrand(null);
     }

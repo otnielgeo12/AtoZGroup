@@ -727,17 +727,72 @@ export interface SendWhatsAppParams {
   recipients: CustomerListItem[];
   message: string;
   imageFile?: File | null;
+  imageUrl?: string | null;
 }
 
 /**
- * Placeholder API WhatsApp untuk AtoZ Group.
- * Untuk sementara dikosongkan/di-mock karena endpoint API WhatsApp masih dalam tahap pembuatan.
+ * API WhatsApp untuk AtoZ Group.
+ * Terhubung langsung ke endpoint https://apiwa.atozgroupsemarang.com/api/send-message
  */
-export async function sendWhatsAppAtoZ(_params: SendWhatsAppParams): Promise<{ success: boolean; message: string }> {
-  // TODO: Hubungkan ke endpoint API WhatsApp AtoZ saat sudah siap
-  console.log("[WhatsApp API - AtoZ] Placeholder dipanggil untuk", _params.recipients.length, "penerima");
-  await new Promise(res => setTimeout(res, 800));
-  return { success: true, message: "WhatsApp API AtoZ masih dalam pengembangan." };
+export async function sendWhatsAppAtoZ(params: SendWhatsAppParams): Promise<{ success: boolean; message: string; sentCount?: number; failCount?: number }> {
+  const apiUrl = "https://apiwa.atozgroupsemarang.com/api/send-message";
+  let sentCount = 0;
+  let failCount = 0;
+
+  let imageUrl = params.imageUrl || null;
+  if (!imageUrl && params.imageFile && typeof FileReader !== "undefined") {
+    imageUrl = await new Promise<string | null>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(params.imageFile!);
+    });
+  }
+
+  for (const c of params.recipients) {
+    if (!c.phone) continue;
+    
+    // Ganti placeholder {{name}} dengan nama customer
+    const personalizedMessage = params.message.replace(/\{\{name\}\}/gi, c.fullName || "Customer");
+    
+    const body: any = {
+      brandId: "atoz",
+      number: c.phone,
+      message: personalizedMessage,
+    };
+    if (imageUrl) {
+      body.imageUrl = imageUrl;
+    }
+
+    try {
+      const res = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        sentCount++;
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        console.error(`[WhatsApp API - AtoZ] Gagal kirim ke ${c.phone}:`, errJson);
+        failCount++;
+      }
+    } catch (err) {
+      console.error(`[WhatsApp API - AtoZ] Error jaringan saat kirim ke ${c.phone}:`, err);
+      failCount++;
+    }
+  }
+
+  if (sentCount === 0 && failCount > 0) {
+    throw new Error(`Gagal mengirim ke ${failCount} nomor WhatsApp. Pastikan koneksi dan server di https://apiwa.atozgroupsemarang.com aktif.`);
+  }
+
+  return {
+    success: true,
+    message: `Berhasil mengirim pesan WhatsApp ke ${sentCount} customer melalui akun AtoZ.${failCount > 0 ? ` (${failCount} gagal)` : ""}`,
+    sentCount,
+    failCount,
+  };
 }
 
 /**
