@@ -188,6 +188,8 @@ export interface VsoftInsight {
   last_visit?: string;
   food_preferences?: string | null;
   beverage_preferences?: string | null;
+  last_event?: string;
+  favorite_items?: string | Array<{ name: string; count: number }>;
 }
 
 interface VsoftOutlet {
@@ -272,9 +274,7 @@ function mapVsoftMember(m: VsoftMember): CustomerListItem {
     province: m.province || null,
     pointBalance: Number(m.point_balance) || Number((m as any).points) || 0,
     lastEvent: m.last_event || (m as any).events_attended || "-",
-    favoriteItems: typeof m.favorite_items === 'string' 
-      ? (() => { try { return JSON.parse(m.favorite_items || '[]'); } catch(e) { return []; } })()
-      : Array.isArray(m.favorite_items) ? m.favorite_items : [],
+    favoriteItems: parseFavoriteItems(m.favorite_items),
   };
 }
 
@@ -385,6 +385,20 @@ function parsePreferences(raw: string | null | undefined): string[] {
     .map(([k]) => k);
 }
 
+function parseFavoriteItems(raw: unknown): Array<{ name: string; count: number }> {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (e) {
+      return [];
+    }
+  }
+  return [];
+}
+
 /**
  * Map a VsoftInsight record directly to a CustomerListItem.
  * Used when showing the customerInsights endpoint as the primary data source.
@@ -400,6 +414,8 @@ export function mapInsightToListItem(
   const topFood = foodPrefs[0] || "";
   const topBev  = bevPrefs[0]  || "";
   const categoryName = [topFood, topBev].filter(Boolean).join(" / ") || "—";
+  const lastEvent = insight.last_event || (insight as any).events_attended || "-";
+  const favoriteItems = parseFavoriteItems(insight.favorite_items);
 
   return {
     id:                insight.code || insight.customer_code || insight.phone || insight.phone_number || "",
@@ -420,6 +436,8 @@ export function mapInsightToListItem(
     city:              null,
     province:          null,
     pointBalance:      0,
+    lastEvent,
+    favoriteItems,
   };
 }
 
@@ -472,6 +490,10 @@ export function mergeInsightsIntoMembers(
     const parsedBev        = parsePreferences(insight.beverage_preferences);
     const foodPrefs        = parsedFood.length > 0 ? parsedFood : m.foodPreferences;
     const bevPrefs         = parsedBev.length > 0 ? parsedBev : m.beveragePreferences;
+    const rawLastEvent     = insight.last_event || (insight as any).events_attended;
+    const lastEvent        = rawLastEvent && rawLastEvent !== "-" ? rawLastEvent : (m.lastEvent || "-");
+    const parsedFavs       = parseFavoriteItems(insight.favorite_items);
+    const favoriteItems    = parsedFavs.length > 0 ? parsedFavs : (m.favoriteItems || []);
 
     return {
       ...m,
@@ -483,6 +505,8 @@ export function mergeInsightsIntoMembers(
       primaryOutletName,
       foodPreferences:   foodPrefs,
       beveragePreferences: bevPrefs,
+      lastEvent,
+      favoriteItems,
     };
   });
 }
