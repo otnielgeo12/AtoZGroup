@@ -143,6 +143,8 @@ export interface CreateCustomerBody {
   memberCode?: string;
 }
 
+export const ALL_TENANTS = ["atoz", "bosa", "lakers", "ombe", "rh", "bodega"];
+
 export interface ListCustomersParams {
   search?: string;
   category?: string;
@@ -224,6 +226,10 @@ export interface Category {
 
 // ─── Mappers ──────────────────────────────────────────────────────────────────
 
+function isValidAndAllowedCustomer(item: CustomerListItem): boolean {
+  return true;
+}
+
 function mapVsoftMember(m: VsoftMember): CustomerListItem {
   const nameVal = m.customer_name || m.name || "";
   const fullName = nameVal.trim() || "(No Name)";
@@ -232,7 +238,23 @@ function mapVsoftMember(m: VsoftMember): CustomerListItem {
   const totalSpending = Number(m.total_spending) || 0;
   const totalVisits = Number(m.total_visit) || Number((m as any).total_visits) || 0;
   const lastVisitDate = m.last_visit || (m as any).last_visit_date || "";
-  const primaryOutletName = m.outlet || (m as any).outlet_name || (m as any).primary_outlet_name || (m as any).outlet_code || "—";
+  const rawOutlet = m.outlet || (m as any).outlet_name || (m as any).primary_outlet_name || (m as any).outlet_code || "—";
+  
+  const mapOutletCode = (code: string) => {
+    const c = code.trim().toUpperCase();
+    if (c === "AZ" || c === "ATOZ") return "AtoZ";
+    if (c === "BS" || c === "BOSA") return "BOSA";
+    if (c === "LK" || c === "LV" || c === "LAKERS") return "Lakers";
+    if (c === "BD" || c === "BODEGA") return "Bodega";
+    if (c === "OM" || c === "OMBE" || c === "OB") return "Ombe";
+    if (c === "RH") return "RH";
+    if (c === "D5") return "D5";
+    return code.trim();
+  };
+
+  const primaryOutletName = rawOutlet !== "—" 
+    ? Array.from(new Set(rawOutlet.split(",").map(mapOutletCode))).join(", ") 
+    : "—";
 
   const foodPrefs = m.food_preferences
     ? m.food_preferences.split(",").map(x => x.trim()).filter(Boolean)
@@ -328,6 +350,7 @@ function mapVsoftOutlet(o: VsoftOutlet): Outlet {
 async function vsfRequest<T>(
   url: string,
   options: RequestInit = {},
+  outletId?: string,
 ): Promise<T> {
   const authHeader = getBasicAuthHeader();
   const headers: HeadersInit = {
@@ -335,8 +358,24 @@ async function vsfRequest<T>(
     ...(authHeader ? { Authorization: authHeader } : {}),
     ...(options.headers as Record<string, string> ?? {}),
   };
+  if (outletId) {
+    let raw = outletId.toLowerCase();
+    if (raw === "bs") raw = "bosa";
+    if (raw === "lk") raw = "lakers";
+    if (raw === "bd") raw = "bodega";
+    if (raw === "az") raw = "atoz";
+    (headers as any)["x-outlet-id"] = raw;
+  }
 
-  const res = await fetch(url, { ...options, headers });
+  let finalUrl = url;
+  if (!import.meta.env.DEV && finalUrl.startsWith("/api-handler.php/")) {
+    const parts = finalUrl.substring(17).split("?");
+    const route = parts[0];
+    const qs = parts[1] ? `&${parts[1]}` : "";
+    finalUrl = `/api-handler.php?route=/${route}${qs}`;
+  }
+
+  const res = await fetch(finalUrl, { ...options, headers });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error((body as any)?.message ?? `HTTP ${res.status}`);
@@ -349,19 +388,28 @@ async function vsfRequest<T>(
 export async function listOutlets(
   _getToken?: () => Promise<string | null>,
 ): Promise<Outlet[]> {
-  const base = getCrmBaseUrl();
-  const resp = await vsfRequest<VsoftResponse<VsoftOutlet[]>>(
-    `${base}/api/v1/outlets`,
-  );
-  return (resp.data ?? []).map(mapVsoftOutlet);
+  return [
+    { id: "AZ", name: "AtoZ" },
+    { id: "BS", name: "BOSA" },
+    { id: "Lakers", name: "Lakers" },
+    { id: "Ombe", name: "Ombe" },
+    { id: "RH", name: "RH" },
+    { id: "Bodega", name: "Bodega" },
+    { id: "D5", name: "D5" },
+  ];
 }
 
 export async function listCategories(
+  outletId?: string,
   _getToken?: () => Promise<string | null>,
 ): Promise<Category[]> {
   const base = getCrmBaseUrl();
-  const resp = await vsfRequest<VsoftResponse<Category[]>>(`${base}/api/v1/categories`);
-  return resp.data || [];
+  try {
+    const resp = await vsfRequest<VsoftResponse<Category[]>>(`${base}/api/v1/categories`, {}, outletId);
+    return resp.data || [];
+  } catch (err) {
+    return [];
+  }
 }
 
 export async function listCustomers(
@@ -369,28 +417,45 @@ export async function listCustomers(
   _getToken?: () => Promise<string | null>,
 ): Promise<CustomerListItem[]> {
   const base = getCrmBaseUrl();
-  const qs = new URLSearchParams();
-  if (params.search) qs.set("search", params.search);
-  if (params.category) qs.set("category", params.category);
-  if (params.outletId) {
-    qs.set("outlet_code", params.outletId); // some APIs use outlet_code
-    qs.set("outlet", params.outletId); // we send both just to be safe
-    qs.set("primary_outlet_code", params.outletId); // Just in case
-  }
-  if (params.status) qs.set("status", params.status);
-  qs.set("take", String(params.take ?? 50)); // Max 50
-  qs.set("skip", String(params.skip ?? 0));
+  const fetchPage = async (outId?: string, customSkip?: number, customTake?: number) => {
+    const qs = new URLSearchParams();
+    if (params.search) qs.set("search", params.search);
+    if (params.category) qs.set("category", params.category);
+    if (params.outletId) {
+      let code = params.outletId;
+      if (code === "Ombe") code = "OB";
+      if (code === "Lakers") code = "LK";
+      if (code === "Bodega") code = "BD";
+      if (code === "AtoZ") code = "AZ";
+      if (code === "BOSA") code = "BS";
+      qs.set("outlet_code", code);
+      qs.set("outlet", code);
+      qs.set("primary_outlet_code", code);
+    }
+    if (params.status) qs.set("status", params.status);
+    qs.set("take", String(customTake ?? params.take ?? 50));
+    qs.set("skip", String(customSkip ?? params.skip ?? 0));
+    return await vsfRequest<VsoftResponse<VsoftMember[]>>(`${base}/api/v1/members?${qs}`, {}, outId);
+  };
 
-  const url = `${base}/api/v1/members?${qs}`;
-  const resp = await vsfRequest<VsoftResponse<VsoftMember[]>>(url);
-  const items = (resp.data ?? []).map(mapVsoftMember);
-  if (typeof resp.total === "number") {
-    (items as any).totalCount = resp.total;
+  if (params.outletId) {
+    let resp = await fetchPage(params.outletId);
+    if (params.outletId === "BS" && (!resp.data || resp.data.length === 0 || resp.total === 0)) {
+      resp = await fetchPage("Lakers");
+    }
+    const tId = params.outletId === "BS" ? "bosa" : (params.outletId === "Lakers" ? "lakers" : (params.outletId === "Ombe" ? "ombe" : (params.outletId === "RH" ? "rh" : (params.outletId === "Bodega" ? "bodega" : "atoz"))));
+    const items = (resp.data ?? []).map(m => mapVsoftMember({ ...m, _injected_tenant: tId })).filter(isValidAndAllowedCustomer);
+    if (typeof resp.total === "number") (items as any).totalCount = resp.total;
+    if (typeof resp.total_new === "number") (items as any).totalNewCount = resp.total_new;
+    return items;
+  } else {
+    // Backend handles 'all' merging and pagination
+    const resp = await fetchPage("all");
+    const items = (resp.data ?? []).map(m => mapVsoftMember({ ...m, _injected_tenant: (m as any)._injected_tenant || "all" })).filter(isValidAndAllowedCustomer);
+    if (typeof resp.total === "number") (items as any).totalCount = resp.total;
+    if (typeof resp.total_new === "number") (items as any).totalNewCount = resp.total_new;
+    return items;
   }
-  if (typeof resp.total_new === "number") {
-    (items as any).totalNewCount = resp.total_new;
-  }
-  return items;
 }
 
 // ─── Preference helpers ───────────────────────────────────────────────────────
@@ -482,20 +547,51 @@ export function mapInsightToListItem(
 export async function fetchCustomerInsights(
   startDate: string,
   endDate: string,
+  outletId?: string,
   _getToken?: () => Promise<string | null>,
 ): Promise<{ byCode: Map<string, VsoftInsight>; byPhone: Map<string, VsoftInsight>; raw: VsoftInsight[] }> {
   const base = getCrmBaseUrl();
-  const url = `${base}/api/v1/customerInsights?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`;
-  const resp = await vsfRequest<VsoftResponse<VsoftInsight[]>>(url);
+  
+  const fetchForTenant = async (outId?: string) => {
+    const qs = new URLSearchParams();
+    qs.set("start_date", startDate);
+    qs.set("end_date", endDate);
+    if (outletId) {
+      let code = outletId;
+      if (code === "Ombe") code = "OB";
+      if (code === "Lakers") code = "LK";
+      if (code === "Bodega") code = "BD";
+      if (code === "AtoZ") code = "AZ";
+      if (code === "BOSA") code = "BS";
+      if (code === "RH") code = "RH";
+      if (code === "D5") code = "D5";
+      qs.set("outlet_code", code);
+    }
+    return await vsfRequest<VsoftResponse<VsoftInsight[]>>(`${base}/api/v1/customerInsights?${qs}`, {}, outId);
+  };
+
+  let allData: VsoftInsight[] = [];
+  
+  if (outletId) {
+    const resp = await fetchForTenant(outletId).catch(() => null);
+    if (resp && resp.data) allData = resp.data;
+  } else {
+    // Backend handles 'all' merging
+    const resp = await fetchForTenant("all").catch(() => null);
+    if (resp && resp.data) allData = resp.data;
+  }
+
   const byCode  = new Map<string, VsoftInsight>();
   const byPhone = new Map<string, VsoftInsight>();
-  for (const item of (resp.data ?? [])) {
+  
+  for (const item of allData) {
     const cCode = item.code || item.customer_code;
     const cPhone = item.phone || item.phone_number;
-    if (cCode)  byCode.set(cCode, item);
+    
+    if (cCode) byCode.set(cCode, item);
     if (cPhone) byPhone.set(cPhone, item);
   }
-  return { byCode, byPhone, raw: resp.data ?? [] };
+  return { byCode, byPhone, raw: allData };
 }
 
 /**
@@ -566,8 +662,14 @@ export async function countCustomers(
     if (search) qs.set("search", search);
     if (category) qs.set("category", category);
     if (outletId) {
-      qs.set("outlet_code", outletId);
-      qs.set("outlet", outletId);
+      let code = outletId;
+      if (code === "Ombe") code = "OB";
+      if (code === "Lakers") code = "LK";
+      if (code === "Bodega") code = "BD";
+      if (code === "AtoZ") code = "AZ";
+      if (code === "BOSA") code = "BS";
+      qs.set("outlet_code", code);
+      qs.set("outlet", code);
     }
     qs.set("take", "1");
     qs.set("skip", "0");
@@ -631,10 +733,22 @@ export async function getCustomer(
   _getToken?: () => Promise<string | null>,
 ): Promise<CustomerDetail> {
   const base = getCrmBaseUrl();
-  const resp = await vsfRequest<VsoftResponse<VsoftMember>>(
-    `${base}/api/v1/members/${encodeURIComponent(code)}`,
-  );
-  return mapVsoftMemberDetail(resp.data);
+  
+  for (const t of ALL_TENANTS) {
+    try {
+      const resp = await vsfRequest<VsoftResponse<VsoftMember>>(
+        `${base}/api/v1/members/${encodeURIComponent(code)}`,
+        {},
+        t
+      );
+      if (resp && resp.data && (resp.data.code || (resp.data as any).customer_code)) {
+        return mapVsoftMemberDetail({ ...resp.data, _injected_tenant: t } as any);
+      }
+    } catch (e) {
+      // ignore and try next
+    }
+  }
+  throw new Error("Customer not found in any tenant");
 }
 
 export async function createCustomer(
@@ -642,21 +756,23 @@ export async function createCustomer(
   _getToken?: () => Promise<string | null>,
 ): Promise<{ code: string }> {
   const base = getCrmBaseUrl();
-  const formData = new URLSearchParams();
-  if (body.firstName) formData.set("first_name", body.firstName);
-  if (body.lastName) formData.set("last_name", body.lastName);
-  if (body.phone) formData.set("phone_number", body.phone);
-  if (body.email) formData.set("email", body.email);
-  if (body.address) formData.set("address", body.address);
-  if (body.city) formData.set("city", body.city);
-  if (body.province) formData.set("province", body.province);
+
+  const payload: Record<string, string> = {};
+  if (body.firstName)  payload.first_name   = body.firstName;
+  if (body.lastName)   payload.last_name    = body.lastName;
+  if (body.phone)      payload.phone_number = body.phone;
+  if (body.email)      payload.email        = body.email;
+  if (body.address)    payload.address      = body.address;
+  if (body.city)       payload.city         = body.city;
+  if (body.province)   payload.province     = body.province;
+  if (body.outletCode) payload.outlet_code  = body.outletCode;
 
   const resp = await vsfRequest<VsoftResponse<{ code: string }>>(
     `${base}/api/v1/members`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: formData.toString(),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     },
   );
   return resp.data;
@@ -668,21 +784,23 @@ export async function updateCustomer(
   _getToken?: () => Promise<string | null>,
 ): Promise<void> {
   const base = getCrmBaseUrl();
-  const formData = new URLSearchParams();
-  formData.set("member_code", code);
-  if (body.firstName) formData.set("name", body.firstName + (body.lastName ? ` ${body.lastName}` : ""));
-  if (body.phone) formData.set("phone_number", body.phone);
-  if (body.email) formData.set("email", body.email);
-  if (body.address) formData.set("address", body.address);
-  if (body.city) formData.set("city", body.city);
-  if (body.province) formData.set("province", body.province);
+
+  const payload: Record<string, string> = { member_code: code };
+  if (body.firstName || body.lastName) {
+    payload.name = [body.firstName, body.lastName].filter(Boolean).join(" ").trim();
+  }
+  if (body.phone)    payload.phone_number = body.phone;
+  if (body.email)    payload.email        = body.email;
+  if (body.address)  payload.address      = body.address;
+  if (body.city)     payload.city         = body.city;
+  if (body.province) payload.province     = body.province;
 
   await vsfRequest<VsoftResponse<unknown>>(
     `${base}/api/v1/members`,
     {
       method: "PATCH",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: formData.toString(),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     },
   );
 }
@@ -712,15 +830,26 @@ export async function getCustomerHistory(
   if (phone) qs.set("phone", phone);
   if (startDate) qs.set("start_date", startDate);
   if (endDate) qs.set("end_date", endDate);
-  try {
-    const resp = await vsfRequest<VsoftResponse<CustomerPurchaseItem[]>>(
-      `${base}/api/v1/members/${encodeURIComponent(code)}/history?${qs}`,
-    );
-    return resp.data ?? [];
-  } catch (err) {
-    console.warn("Failed to fetch customer history:", err);
-    return [];
+  
+  let allHistory: CustomerPurchaseItem[] = [];
+  for (const t of ALL_TENANTS) {
+    try {
+      const resp = await vsfRequest<VsoftResponse<CustomerPurchaseItem[]>>(
+        `${base}/api/v1/members/${encodeURIComponent(code)}/history?${qs}`,
+        {},
+        t
+      );
+      if (resp && resp.data && Array.isArray(resp.data)) {
+        allHistory = allHistory.concat(resp.data);
+      }
+    } catch (err) {
+      // ignore
+    }
   }
+  
+  // Sort descending by date
+  allHistory.sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
+  return allHistory;
 }
 
 // Note: deleteCustomer is not available in Vsoft API
@@ -730,7 +859,7 @@ export async function getCustomerHistory(
 export const crmKeys = {
   all: ["crm"] as const,
   outlets: () => [...crmKeys.all, "outlets"] as const,
-  categories: () => [...crmKeys.all, "categories"] as const,
+  categories: (outletId?: string) => [...crmKeys.all, "categories", outletId || "all"] as const,
   lists: () => [...crmKeys.all, "list"] as const,
   list: (params: ListCustomersParams) => [...crmKeys.lists(), params] as const,
   details: () => [...crmKeys.all, "detail"] as const,
@@ -741,155 +870,250 @@ export const crmKeys = {
 
 // ─── WhatsApp API Placeholders (Under Construction) ───────────────────────────
 
+
 export interface SendWhatsAppParams {
   recipients: CustomerListItem[];
   message: string;
-  imageFile?: File | null;
-  imageUrl?: string | null;
+  imageFile?: File;
+  imageUrl?: string;
 }
 
-/**
- * API WhatsApp untuk AtoZ Group.
- * Terhubung langsung ke endpoint https://apiwa.atozgroupsemarang.com/api/send-message
- */
-export async function sendWhatsAppAtoZ(params: SendWhatsAppParams): Promise<{ success: boolean; message: string; sentCount?: number; failCount?: number }> {
-  const apiUrl = "https://apiwa.atozgroupsemarang.com/api/send-message";
-  let sentCount = 0;
-  let failCount = 0;
+export interface SendWhatsAppResult {
+  success: boolean;
+  message: string;
+  jobId?: string;
+  estimatedSeconds?: number;
+  skippedDueToLimit?: number;
+}
 
-  let imageUrl = params.imageUrl || null;
-  if (!imageUrl && params.imageFile && typeof FileReader !== "undefined") {
-    imageUrl = await new Promise<string | null>((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(params.imageFile!);
+export interface WhatsAppJobProgress {
+  status: "pending" | "processing" | "completed" | "failed";
+  totalRecipients: number;
+  sentCount: number;
+  failCount: number;
+  results: { name: string; phone: string; status: "sent" | "failed"; error?: string }[];
+}
+
+export async function getWhatsAppSendProgress(jobId: string): Promise<WhatsAppJobProgress | null> {
+  return null;
+}
+
+export async function getWhatsAppStatus(tenant: string): Promise<{ dailyCount: number, dailyLimit: number }> {
+  return { dailyCount: 0, dailyLimit: 15 };
+}
+
+export async function fetchTopSpenders(
+  startDate: string,
+  endDate: string,
+  limit: number = 5,
+  _getToken?: () => Promise<string | null>,
+): Promise<CustomerListItem[]> {
+  const insights = await fetchCustomerInsights(startDate, endDate, undefined, _getToken);
+  const raw = insights.raw;
+  // sort by total_spending desc
+  raw.sort((a, b) => (Number(b.total_spending) || 0) - (Number(a.total_spending) || 0));
+  
+  const top = raw.slice(0, limit);
+  // map them to CustomerListItem
+  return top.map(insight => {
+    return mapInsightToListItem(insight);
+  });
+}
+
+export interface RevenueAnalyticsItem {
+  month: string;
+  month_key: string;
+  revenue: number;
+}
+
+export async function fetchRevenueAnalytics(
+  timeframe: number,
+  outlet?: string,
+  _getToken?: () => Promise<string | null>,
+): Promise<RevenueAnalyticsItem[]> {
+  const base = getCrmBaseUrl();
+  const qs = new URLSearchParams();
+  qs.set("timeframe", String(timeframe));
+  if (outlet && outlet !== "All Outlets" && outlet !== "all") {
+    let code = outlet;
+    if (code === "Ombe") code = "OB";
+    if (code === "Lakers") code = "LK";
+    if (code === "Bodega") code = "BD";
+    if (code === "AtoZ") code = "AZ";
+    if (code === "BOSA") code = "BS";
+    if (code === "RH") code = "RH";
+    if (code === "D5") code = "D5";
+    qs.set("outlet", code);
+  }
+  const url = `${base}/api/analytics/revenue?${qs}`;
+  const resp = await vsfRequest<VsoftResponse<RevenueAnalyticsItem[]>>(url);
+  return resp.data || [];
+}
+
+export async function fetchTopSpendersAnalytics(
+  outlet?: string,
+  _getToken?: () => Promise<string | null>,
+): Promise<any[]> {
+  const base = getCrmBaseUrl();
+  const qs = new URLSearchParams();
+  if (outlet && outlet !== "All Outlets" && outlet !== "all") {
+    let code = outlet;
+    if (code === "Ombe") code = "OB";
+    if (code === "Lakers") code = "LK";
+    if (code === "Bodega") code = "BD";
+    if (code === "AtoZ") code = "AZ";
+    if (code === "BOSA") code = "BS";
+    if (code === "RH") code = "RH";
+    if (code === "D5") code = "D5";
+    qs.set("outlet", code);
+  }
+  const url = `${base}/api/analytics/top-spenders?${qs}`;
+  const resp = await vsfRequest<VsoftResponse<any[]>>(url);
+  return resp.data || [];
+}
+
+export interface AnalyticsItem {
+  nama_barang: string;
+  total_sold: number;
+}
+
+export async function fetchTopItemsAnalytics(
+  outlet?: string,
+  _getToken?: () => Promise<string | null>,
+  sort?: string,
+): Promise<AnalyticsItem[]> {
+  const base = getCrmBaseUrl();
+  const qs = new URLSearchParams();
+  if (outlet && outlet !== "All Outlets" && outlet !== "all") {
+    let code = outlet;
+    if (code === "Ombe") code = "OB";
+    if (code === "Lakers") code = "LK";
+    if (code === "Bodega") code = "BD";
+    if (code === "AtoZ") code = "AZ";
+    if (code === "BOSA") code = "BS";
+    if (code === "RH") code = "RH";
+    if (code === "D5") code = "D5";
+    qs.set("outlet", code);
+  }
+  if (sort) {
+    qs.set("sort", sort);
+  }
+  const url = `${base}/api/analytics/top-items?${qs}`;
+  const resp = await vsfRequest<VsoftResponse<AnalyticsItem[]>>(url);
+  return resp.data || [];
+}
+
+export async function sendWhatsAppAtoZ(_params: SendWhatsAppParams): Promise<SendWhatsAppResult> {
+  return { success: false, message: "WhatsApp AtoZ belum dikonfigurasi. Hubungi admin." };
+}
+
+export async function sendWhatsAppBosa(params: SendWhatsAppParams): Promise<SendWhatsAppResult> {
+  const base = getCrmBaseUrl();
+  const recipients = params.recipients.map(r => ({
+    name:  r.name || r.customer_name || "Pelanggan",
+    phone: r.phone_number || r.phone || "",
+  }));
+
+  try {
+    const resp = await fetch(`${base}/api/wa/send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        outlet:     "bosa",
+        recipients,
+        message:    params.message,
+      }),
     });
-  }
 
-  for (const c of params.recipients) {
-    if (!c.phone) continue;
-    
-    // Ganti placeholder {{name}} dengan nama customer
-    const personalizedMessage = params.message.replace(/\{\{name\}\}/gi, c.fullName || "Customer");
-    
-    const body: any = {
-      brandId: "atoz",
-      number: c.phone,
-      message: personalizedMessage,
+    const json = await resp.json();
+
+    if (!resp.ok || !json.success) {
+      return { success: false, message: json.message || "Gagal mengirim pesan" };
+    }
+
+    const d = json.data || {};
+    return {
+      success:    true,
+      message:    json.message || `Terkirim ke ${d.sentCount} penerima`,
+      jobId:      undefined,
     };
-    if (imageUrl) {
-      body.imageUrl = imageUrl;
-    }
-
-    try {
-      const res = await fetch(apiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (res.ok) {
-        sentCount++;
-      } else {
-        const errJson = await res.json().catch(() => ({}));
-        console.error(`[WhatsApp API - AtoZ] Gagal kirim ke ${c.phone}:`, errJson);
-        failCount++;
-      }
-    } catch (err) {
-      console.error(`[WhatsApp API - AtoZ] Error jaringan saat kirim ke ${c.phone}:`, err);
-      failCount++;
-    }
+  } catch (err: any) {
+    return { success: false, message: err.message || "Koneksi ke server gagal" };
   }
+}
 
-  if (sentCount === 0 && failCount > 0) {
-    throw new Error(`Gagal mengirim ke ${failCount} nomor WhatsApp. Pastikan koneksi dan server di https://apiwa.atozgroupsemarang.com aktif.`);
+export async function sendWhatsAppBodega(_params: SendWhatsAppParams): Promise<SendWhatsAppResult> {
+  return { success: false, message: "WhatsApp Bodega belum dikonfigurasi. Hubungi admin." };
+}
+export async function sendWhatsAppLakers(_params: SendWhatsAppParams): Promise<SendWhatsAppResult> {
+  return { success: false, message: "WhatsApp Lakers belum dikonfigurasi. Hubungi admin." };
+}
+export async function sendWhatsAppRedhare(_params: SendWhatsAppParams): Promise<SendWhatsAppResult> {
+  return { success: false, message: "WhatsApp Redhare belum dikonfigurasi. Hubungi admin." };
+}
+export async function sendWhatsAppOombee(_params: SendWhatsAppParams): Promise<SendWhatsAppResult> {
+  return { success: false, message: "WhatsApp Ombe belum dikonfigurasi. Hubungi admin." };
+}
+export async function sendWhatsAppShiraz(_params: SendWhatsAppParams): Promise<SendWhatsAppResult> {
+  return { success: false, message: "WhatsApp Shiraz belum dikonfigurasi. Hubungi admin." };
+}
+export async function sendWhatsAppDistrict5(_params: SendWhatsAppParams): Promise<SendWhatsAppResult> {
+  return { success: false, message: "WhatsApp District5 belum dikonfigurasi. Hubungi admin." };
+}
+export async function sendWhatsAppInfinity(_params: SendWhatsAppParams): Promise<SendWhatsAppResult> {
+  return { success: false, message: "WhatsApp Infinity belum dikonfigurasi. Hubungi admin." };
+}
+
+export interface WhatsAppMessageLog {
+  id: string;
+  sent_at?: string;
+  created_at: string;
+  customer_name?: string;
+  recipient_number: string;
+  message_text: string;
+  image_url?: string;
+  brand_id: string;
+  status: "pending" | "success" | "failed";
+  delivery_status?: "pending" | "sent" | "read" | "failed";
+  wablas_message_id?: string;
+  read_at?: string;
+  error_message?: string;
+}
+
+export interface WhatsAppReportsSummary {
+  totalMessages: number;
+  totalSent: number;
+  totalRead: number;
+  totalFailed: number;
+}
+
+export async function fetchWhatsAppReports(
+  startDate?: string,
+  endDate?: string,
+  brandFilter?: string
+): Promise<{ data: WhatsAppMessageLog[]; summary: WhatsAppReportsSummary }> {
+  try {
+    const waApiUrl = (import.meta as any).env.VITE_WA_API_URL || "https://apiwa.atozgroupsemarang.com";
+    const params = new URLSearchParams();
+    if (startDate) params.append("startDate", startDate);
+    if (endDate) params.append("endDate", endDate);
+    if (brandFilter) params.append("brandId", brandFilter.toLowerCase());
+
+    const resp = await fetch(`${waApiUrl}/api/reports?${params.toString()}`);
+    if (!resp.ok) throw new Error("Failed to fetch reports");
+    const json = await resp.json();
+    if (json.success) {
+      return {
+        data: json.data || [],
+        summary: json.summary || { totalMessages: 0, totalSent: 0, totalRead: 0, totalFailed: 0 }
+      };
+    }
+    throw new Error(json.error || "Failed");
+  } catch (error) {
+    console.error("fetchWhatsAppReports error:", error);
+    return {
+      data: [],
+      summary: { totalMessages: 0, totalSent: 0, totalRead: 0, totalFailed: 0 }
+    };
   }
-
-  return {
-    success: true,
-    message: `Berhasil mengirim pesan WhatsApp ke ${sentCount} customer melalui akun AtoZ.${failCount > 0 ? ` (${failCount} gagal)` : ""}`,
-    sentCount,
-    failCount,
-  };
 }
-
-/**
- * Placeholder API WhatsApp untuk Bosa.
- */
-export async function sendWhatsAppBosa(_params: SendWhatsAppParams): Promise<{ success: boolean; message: string }> {
-  // TODO: Hubungkan ke endpoint API WhatsApp Bosa saat sudah siap
-  console.log("[WhatsApp API - Bosa] Placeholder dipanggil untuk", _params.recipients.length, "penerima");
-  await new Promise(res => setTimeout(res, 800));
-  return { success: true, message: "WhatsApp API Bosa masih dalam pengembangan." };
-}
-
-/**
- * Placeholder API WhatsApp untuk Bodega.
- */
-export async function sendWhatsAppBodega(_params: SendWhatsAppParams): Promise<{ success: boolean; message: string }> {
-  // TODO: Hubungkan ke endpoint API WhatsApp Bodega saat sudah siap
-  console.log("[WhatsApp API - Bodega] Placeholder dipanggil untuk", _params.recipients.length, "penerima");
-  await new Promise(res => setTimeout(res, 800));
-  return { success: true, message: "WhatsApp API Bodega masih dalam pengembangan." };
-}
-
-/**
- * Placeholder API WhatsApp untuk Lakers.
- */
-export async function sendWhatsAppLakers(_params: SendWhatsAppParams): Promise<{ success: boolean; message: string }> {
-  // TODO: Hubungkan ke endpoint API WhatsApp Lakers saat sudah siap
-  console.log("[WhatsApp API - Lakers] Placeholder dipanggil untuk", _params.recipients.length, "penerima");
-  await new Promise(res => setTimeout(res, 800));
-  return { success: true, message: "WhatsApp API Lakers masih dalam pengembangan." };
-}
-
-/**
- * Placeholder API WhatsApp untuk Redhare.
- */
-export async function sendWhatsAppRedhare(_params: SendWhatsAppParams): Promise<{ success: boolean; message: string }> {
-  // TODO: Hubungkan ke endpoint API WhatsApp Redhare saat sudah siap
-  console.log("[WhatsApp API - Redhare] Placeholder dipanggil untuk", _params.recipients.length, "penerima");
-  await new Promise(res => setTimeout(res, 800));
-  return { success: true, message: "WhatsApp API Redhare masih dalam pengembangan." };
-}
-
-/**
- * Placeholder API WhatsApp untuk Oombee.
- */
-export async function sendWhatsAppOombee(_params: SendWhatsAppParams): Promise<{ success: boolean; message: string }> {
-  // TODO: Hubungkan ke endpoint API WhatsApp Oombee saat sudah siap
-  console.log("[WhatsApp API - Oombee] Placeholder dipanggil untuk", _params.recipients.length, "penerima");
-  await new Promise(res => setTimeout(res, 800));
-  return { success: true, message: "WhatsApp API Oombee masih dalam pengembangan." };
-}
-
-/**
- * Placeholder API WhatsApp untuk Shiraz.
- */
-export async function sendWhatsAppShiraz(_params: SendWhatsAppParams): Promise<{ success: boolean; message: string }> {
-  // TODO: Hubungkan ke endpoint API WhatsApp Shiraz saat sudah siap
-  console.log("[WhatsApp API - Shiraz] Placeholder dipanggil untuk", _params.recipients.length, "penerima");
-  await new Promise(res => setTimeout(res, 800));
-  return { success: true, message: "WhatsApp API Shiraz masih dalam pengembangan." };
-}
-
-/**
- * Placeholder API WhatsApp untuk District 5.
- */
-export async function sendWhatsAppDistrict5(_params: SendWhatsAppParams): Promise<{ success: boolean; message: string }> {
-  // TODO: Hubungkan ke endpoint API WhatsApp District 5 saat sudah siap
-  console.log("[WhatsApp API - District5] Placeholder dipanggil untuk", _params.recipients.length, "penerima");
-  await new Promise(res => setTimeout(res, 800));
-  return { success: true, message: "WhatsApp API District 5 masih dalam pengembangan." };
-}
-
-/**
- * Placeholder API WhatsApp untuk Infinity.
- */
-export async function sendWhatsAppInfinity(_params: SendWhatsAppParams): Promise<{ success: boolean; message: string }> {
-  // TODO: Hubungkan ke endpoint API WhatsApp Infinity saat sudah siap
-  console.log("[WhatsApp API - Infinity] Placeholder dipanggil untuk", _params.recipients.length, "penerima");
-  await new Promise(res => setTimeout(res, 800));
-  return { success: true, message: "WhatsApp API Infinity masih dalam pengembangan." };
-}
-
