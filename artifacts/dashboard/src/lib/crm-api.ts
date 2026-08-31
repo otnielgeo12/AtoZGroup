@@ -43,6 +43,42 @@ function getBasicAuthHeader(): string {
   return `Basic ${safeBtoa(`${username}:${password}`)}`;
 }
 
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+  });
+}
+
+export async function fetchUpcomingBirthdays(
+  outletId?: string,
+  _getToken?: () => Promise<string | null>,
+): Promise<any[]> {
+  const base = getCrmBaseUrl();
+  const qs = new URLSearchParams();
+  if (outletId) {
+    let code = outletId;
+    if (code === "Ombe") code = "OB";
+    if (code === "Lakers") code = "LK";
+    if (code === "Bodega") code = "BD";
+    if (code === "AtoZ") code = "AZ";
+    if (code === "BOSA") code = "BS";
+    qs.set("outlet", code);
+  }
+  qs.set("limit", "5");
+  try {
+    const resp = await vsfRequest<VsoftResponse<any[]>>(`${base}/api/v1/members/upcoming-birthdays?${qs}`);
+    return resp.data || [];
+  } catch (err) {
+    console.error("fetchUpcomingBirthdays error:", err);
+    return [];
+  }
+}
+
+// ─── Analytics ─────────────────────────────────────────────────────────────────────
+
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
 export type CustomerStatus = "VIP" | "Regular" | "New";
@@ -789,11 +825,12 @@ export async function updateCustomer(
   if (body.firstName || body.lastName) {
     payload.name = [body.firstName, body.lastName].filter(Boolean).join(" ").trim();
   }
-  if (body.phone)    payload.phone_number = body.phone;
-  if (body.email)    payload.email        = body.email;
-  if (body.address)  payload.address      = body.address;
-  if (body.city)     payload.city         = body.city;
-  if (body.province) payload.province     = body.province;
+  if (body.phone)      payload.phone_number = body.phone;
+  if (body.email)      payload.email        = body.email;
+  if (body.address)    payload.address      = body.address;
+  if (body.city)       payload.city         = body.city;
+  if (body.province)   payload.province     = body.province;
+  if (body.outletCode) payload.outlet_code  = body.outletCode;
 
   await vsfRequest<VsoftResponse<unknown>>(
     `${base}/api/v1/members`,
@@ -866,6 +903,7 @@ export const crmKeys = {
   detail: (code: string) => [...crmKeys.details(), code] as const,
   detailHistory: (code: string, name?: string, phone?: string, startDate?: string, endDate?: string) => [...crmKeys.details(), code, "history", name, phone, startDate, endDate] as const,
   insights: (startDate: string, endDate: string) => [...crmKeys.all, "insights", startDate, endDate] as const,
+  upcomingBirthdays: (outlet?: string) => [...crmKeys.all, "upcomingBirthdays", outlet || "all"] as const,
 };
 
 // ─── WhatsApp API Placeholders (Under Construction) ───────────────────────────
@@ -1003,18 +1041,68 @@ export async function fetchTopItemsAnalytics(
   return resp.data || [];
 }
 
-export async function sendWhatsAppAtoZ(_params: SendWhatsAppParams): Promise<SendWhatsAppResult> {
-  return { success: false, message: "WhatsApp AtoZ belum dikonfigurasi. Hubungi admin." };
-}
-
-export async function sendWhatsAppBosa(params: SendWhatsAppParams): Promise<SendWhatsAppResult> {
+export async function sendWhatsAppAtoZ(params: SendWhatsAppParams): Promise<SendWhatsAppResult> {
   const base = getCrmBaseUrl();
-  const recipients = params.recipients.map(r => ({
-    name:  r.name || r.customer_name || "Pelanggan",
+  const recipients = params.recipients.map((r: any) => ({
+    name:  r.fullName || r.name || r.customer_name || "Pelanggan",
     phone: r.phone_number || r.phone || "",
   }));
 
   try {
+    let imageBase64: string | undefined;
+    let imageMimeType: string | undefined;
+    if (params.imageFile) {
+      const b64 = await fileToBase64(params.imageFile);
+      imageBase64 = b64.split(",")[1];
+      imageMimeType = params.imageFile.type;
+    }
+
+    const resp = await fetch(`${base}/api/wa/send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        outlet:     "atoz",
+        recipients,
+        message:    params.message,
+        imageBase64,
+        imageMimeType,
+      }),
+    });
+
+    const json = await resp.json();
+
+    if (!resp.ok || !json.success) {
+      return { success: false, message: json.message || "Gagal mengirim pesan" };
+    }
+
+    const d = json.data || {};
+    return {
+      success:    true,
+      message:    json.message || `Terkirim ke ${d.sentCount} penerima`,
+      jobId:      undefined,
+    };
+  } catch (error: any) {
+    console.error("WA AtoZ error:", error);
+    return { success: false, message: error?.message || "Kesalahan jaringan" };
+  }
+}
+
+export async function sendWhatsAppBosa(params: SendWhatsAppParams): Promise<SendWhatsAppResult> {
+  const base = getCrmBaseUrl();
+  const recipients = params.recipients.map((r: any) => ({
+    name:  r.fullName || r.name || r.customer_name || "Pelanggan",
+    phone: r.phone_number || r.phone || "",
+  }));
+
+  try {
+    let imageBase64: string | undefined;
+    let imageMimeType: string | undefined;
+    if (params.imageFile) {
+      const b64 = await fileToBase64(params.imageFile);
+      imageBase64 = b64.split(",")[1];
+      imageMimeType = params.imageFile.type;
+    }
+
     const resp = await fetch(`${base}/api/wa/send`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1022,6 +1110,8 @@ export async function sendWhatsAppBosa(params: SendWhatsAppParams): Promise<Send
         outlet:     "bosa",
         recipients,
         message:    params.message,
+        imageBase64,
+        imageMimeType,
       }),
     });
 
