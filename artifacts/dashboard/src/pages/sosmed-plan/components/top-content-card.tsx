@@ -15,13 +15,17 @@ export function TopContentCard() {
   const [data, setData] = useState<TopContentData[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<string>("impressions");
+  const [outlet, setOutlet] = useState<string>("all");
 
   useEffect(() => {
     async function loadData() {
       setLoading(true);
       try {
         // Fetch recent published contents
-        const res = await listContents({ status: "published", pageSize: 10 });
+        const query: any = { status: "published", pageSize: 10 };
+        if (outlet !== "all") query.outlet = outlet;
+        
+        const res = await listContents(query);
         
         // Fetch insights for each content
         const enriched = await Promise.all(
@@ -49,7 +53,7 @@ export function TopContentCard() {
       setLoading(false);
     }
     loadData();
-  }, []);
+  }, [outlet]);
 
   const sortedData = [...data].sort((a, b) => {
     if (sortBy === "impressions") return b.impressions - a.impressions;
@@ -65,7 +69,7 @@ export function TopContentCard() {
 
   return (
     <div className="rounded-xl border border-border bg-card p-5">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <Star className="w-5 h-5 text-muted-foreground" />
@@ -74,40 +78,60 @@ export function TopContentCard() {
           <p className="text-sm text-muted-foreground mt-1">Patokan ranking: {sortBy === 'impressions' ? 'Tayangan' : 'Engagement Rate'}</p>
         </div>
         
-        <div className="flex flex-col items-end gap-1.5">
-          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Urutkan Top Content Berdasarkan
-          </span>
-          <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="h-9 text-sm w-[240px] bg-background">
-              <SelectValue placeholder="Urutkan" />
-            </SelectTrigger>
-            <SelectContent className="max-h-[300px]">
-              <SelectItem value="impressions">Tayangan</SelectItem>
-              <SelectItem value="impresi">Impresi</SelectItem>
-              <SelectItem value="engagementRate">Engagement Rate</SelectItem>
-              <SelectItem value="likes">Suka</SelectItem>
-              <SelectItem value="comments">Komentar</SelectItem>
-              <SelectItem value="shares">Bagikan</SelectItem>
-              <SelectItem value="repost">Repost</SelectItem>
-              <SelectItem value="saves">Disimpan</SelectItem>
-              <SelectItem value="clicks">Klik</SelectItem>
-              <SelectItem value="thruplays">ThruPlays</SelectItem>
-              <SelectItem value="3sec">3-Second Watch Time</SelectItem>
-              <SelectItem value="gmv">GMV / Purchase Value</SelectItem>
-              <SelectItem value="clickRate">Click Rate</SelectItem>
-              <SelectItem value="hookRate">Hook Rate</SelectItem>
-              <SelectItem value="holdRate">Hold Rate</SelectItem>
-              <SelectItem value="watchTime">Waktu Tonton</SelectItem>
-              <SelectItem value="totalEng">Total Engagement</SelectItem>
-              <SelectItem value="profile">Aktivitas Profil</SelectItem>
-              <SelectItem value="avgWatch">Rata-rata Waktu Tonton</SelectItem>
-              <SelectItem value="newFollowers">Pengikut Baru</SelectItem>
-              <SelectItem value="completed">Tonton Sampai Habis</SelectItem>
-              <SelectItem value="skipRate">Rasio Skip</SelectItem>
-              <SelectItem value="avgSkipReels">Rata-rata Rasio Skip Reels</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-col items-start gap-1.5">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Outlet
+            </span>
+            <Select value={outlet} onValueChange={setOutlet}>
+              <SelectTrigger className="h-9 text-sm w-[130px] bg-background">
+                <SelectValue placeholder="Outlet" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Outlet</SelectItem>
+                <SelectItem value="atoz">AtoZ</SelectItem>
+                <SelectItem value="bosa">Bosa</SelectItem>
+                <SelectItem value="bodega">Bodega</SelectItem>
+                <SelectItem value="lakers">Lakers</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col items-start gap-1.5">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Urutkan Top Content Berdasarkan
+            </span>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="h-9 text-sm w-[240px] bg-background">
+                <SelectValue placeholder="Urutkan" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[300px]">
+                <SelectItem value="impressions">Tayangan</SelectItem>
+                <SelectItem value="impresi">Impresi</SelectItem>
+                <SelectItem value="engagementRate">Engagement Rate</SelectItem>
+                <SelectItem value="likes">Suka</SelectItem>
+                <SelectItem value="comments">Komentar</SelectItem>
+                <SelectItem value="shares">Bagikan</SelectItem>
+                <SelectItem value="repost">Repost</SelectItem>
+                <SelectItem value="saves">Disimpan</SelectItem>
+                <SelectItem value="clicks">Klik</SelectItem>
+                <SelectItem value="thruplays">ThruPlays</SelectItem>
+                <SelectItem value="3sec">3-Second Watch Time</SelectItem>
+                <SelectItem value="gmv">GMV / Purchase Value</SelectItem>
+                <SelectItem value="clickRate">Click Rate</SelectItem>
+                <SelectItem value="hookRate">Hook Rate</SelectItem>
+                <SelectItem value="holdRate">Hold Rate</SelectItem>
+                <SelectItem value="watchTime">Waktu Tonton</SelectItem>
+                <SelectItem value="totalEng">Total Engagement</SelectItem>
+                <SelectItem value="profile">Aktivitas Profil</SelectItem>
+                <SelectItem value="avgWatch">Rata-rata Waktu Tonton</SelectItem>
+                <SelectItem value="newFollowers">Pengikut Baru</SelectItem>
+                <SelectItem value="completed">Tonton Sampai Habis</SelectItem>
+                <SelectItem value="skipRate">Rasio Skip</SelectItem>
+                <SelectItem value="avgSkipReels">Rata-rata Rasio Skip Reels</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
