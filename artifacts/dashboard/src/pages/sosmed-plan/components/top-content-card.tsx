@@ -74,15 +74,38 @@ export function TopContentCard() {
           <p className="text-sm text-muted-foreground mt-1">Patokan ranking: {sortBy === 'impressions' ? 'Tayangan' : 'Engagement Rate'}</p>
         </div>
         
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-muted-foreground uppercase">Urutkan Berdasarkan</span>
+        <div className="flex flex-col items-end gap-1.5">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Urutkan Top Content Berdasarkan
+          </span>
           <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="h-9 text-sm w-[180px] bg-background">
+            <SelectTrigger className="h-9 text-sm w-[240px] bg-background">
               <SelectValue placeholder="Urutkan" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="impressions">Tayangan (Impressions)</SelectItem>
+            <SelectContent className="max-h-[300px]">
+              <SelectItem value="impressions">Tayangan</SelectItem>
+              <SelectItem value="impresi">Impresi</SelectItem>
               <SelectItem value="engagementRate">Engagement Rate</SelectItem>
+              <SelectItem value="likes">Suka</SelectItem>
+              <SelectItem value="comments">Komentar</SelectItem>
+              <SelectItem value="shares">Bagikan</SelectItem>
+              <SelectItem value="repost">Repost</SelectItem>
+              <SelectItem value="saves">Disimpan</SelectItem>
+              <SelectItem value="clicks">Klik</SelectItem>
+              <SelectItem value="thruplays">ThruPlays</SelectItem>
+              <SelectItem value="3sec">3-Second Watch Time</SelectItem>
+              <SelectItem value="gmv">GMV / Purchase Value</SelectItem>
+              <SelectItem value="clickRate">Click Rate</SelectItem>
+              <SelectItem value="hookRate">Hook Rate</SelectItem>
+              <SelectItem value="holdRate">Hold Rate</SelectItem>
+              <SelectItem value="watchTime">Waktu Tonton</SelectItem>
+              <SelectItem value="totalEng">Total Engagement</SelectItem>
+              <SelectItem value="profile">Aktivitas Profil</SelectItem>
+              <SelectItem value="avgWatch">Rata-rata Waktu Tonton</SelectItem>
+              <SelectItem value="newFollowers">Pengikut Baru</SelectItem>
+              <SelectItem value="completed">Tonton Sampai Habis</SelectItem>
+              <SelectItem value="skipRate">Rasio Skip</SelectItem>
+              <SelectItem value="avgSkipReels">Rata-rata Rasio Skip Reels</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -121,8 +144,8 @@ export function TopContentCard() {
               Object.entries(groupedData).map(([platform, items]) => (
                 <React.Fragment key={platform}>
                   {/* Platform Header */}
-                  <tr className="bg-muted/20 border-b border-border/50">
-                    <td colSpan={5} className="px-4 py-2 text-xs font-semibold uppercase text-primary tracking-wider">
+                  <tr className={`${platform.toLowerCase() === 'ig' ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400' : 'bg-slate-50 text-slate-600 dark:bg-slate-900/50 dark:text-slate-400'} border-b border-border/50`}>
+                    <td colSpan={5} className="px-4 py-2 text-[11px] font-bold uppercase tracking-wider">
                       {platform}
                     </td>
                   </tr>
@@ -130,17 +153,20 @@ export function TopContentCard() {
                   {/* Items for this platform */}
                   {items.map((item, index) => {
                     const stCfg = STATUS_CONFIG[item.status];
+                    const isIg = item.platform.toLowerCase() === 'ig';
                     return (
                       <tr key={item.id} className="border-b border-border/50 last:border-0 hover:bg-muted/10 transition-colors">
                         <td className="px-4 py-4 text-center font-medium">{index + 1}</td>
                         <td className="px-4 py-4">
-                          <div className="font-medium text-foreground mb-1">{item.title}</div>
+                          <div className="font-semibold text-foreground mb-1.5">{item.title}</div>
                           <div className="flex items-center gap-2">
-                            <span className="flex items-center gap-1 text-[10px] bg-muted px-1.5 py-0.5 rounded border border-border/50">
-                              <PlatformIcon platform={item.platform} size="xs" />
+                            <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                              isIg ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400' 
+                                   : 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-400'
+                            }`}>
                               {item.platform}
                             </span>
-                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${stCfg.bg} ${stCfg.color}`}>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${stCfg.bg} ${stCfg.color}`}>
                               {stCfg.label}
                             </span>
                           </div>
