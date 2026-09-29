@@ -3,6 +3,9 @@ import { type SosmedContent, listContents, type ContentOutlet, type ContentPlatf
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { format, subMonths, isSameMonth } from "date-fns";
+import { id } from "date-fns/locale";
+
 function SocialThumbnail({ url, fallback, className, children }: { url?: string, fallback: string, className?: string, children?: React.ReactNode }) {
   const [bgImage, setBgImage] = useState(fallback);
 
@@ -69,6 +72,17 @@ export function SosmedGrid({ onEdit }: { onEdit?: (content: SosmedContent) => vo
   const [loading, setLoading] = useState(true);
   const [selectedOutlet, setSelectedOutlet] = useState<ContentOutlet | "all">("atoz");
   const [selectedPlatform, setSelectedPlatform] = useState<ContentPlatform | "all">("instagram");
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
+
+  // Generate last 6 months + 3 future months for dropdown
+  const monthOptions = Array.from({ length: 12 }).map((_, i) => {
+    // start from 3 months in the future
+    const d = subMonths(new Date(), i - 3);
+    return {
+      value: format(d, "M-yyyy"),
+      label: format(d, "MMMM yyyy", { locale: id })
+    };
+  });
 
   useEffect(() => {
     async function load() {
@@ -82,36 +96,58 @@ export function SosmedGrid({ onEdit }: { onEdit?: (content: SosmedContent) => vo
       if (selectedPlatform !== "all") {
         filtered = filtered.filter(c => c.platform === selectedPlatform);
       }
+      if (selectedMonth !== "all") {
+        filtered = filtered.filter(c => {
+          const contentDate = new Date(c.scheduledDate || c.createdAt);
+          const monthStr = format(contentDate, "M-yyyy");
+          return monthStr === selectedMonth;
+        });
+      }
       
       setContents(filtered.slice(0, 9));
       setLoading(false);
     }
     load();
-  }, [selectedOutlet, selectedPlatform]);
+  }, [selectedOutlet, selectedPlatform, selectedMonth]);
 
   return (
     <div className="space-y-6 max-w-[800px] mx-auto">
       {/* ─── Header & Filter ─── */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-card p-4 rounded-xl border shadow-sm">
-        <h2 className="text-xl font-bold tracking-tight">Instagram / TikTok Feed Preview</h2>
-        <div className="flex w-full sm:w-auto gap-3">
-          <div className="w-1/2 sm:w-[160px]">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-card p-4 rounded-xl border shadow-sm">
+        <h2 className="text-xl font-bold tracking-tight text-center md:text-left">Instagram / TikTok Feed Preview</h2>
+        <div className="flex flex-wrap w-full md:w-auto gap-3 justify-center md:justify-end">
+          <div className="w-[140px]">
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-full bg-background border-input font-medium">
+                <SelectValue placeholder="Semua Bulan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Bulan</SelectItem>
+                {monthOptions.map(m => (
+                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-[140px]">
             <Select value={selectedPlatform} onValueChange={(v: any) => setSelectedPlatform(v)}>
               <SelectTrigger className="w-full bg-background border-input font-medium">
                 <SelectValue placeholder="Semua Platform" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="all">Semua Platform</SelectItem>
                 <SelectItem value="instagram">Instagram</SelectItem>
                 <SelectItem value="tiktok">TikTok</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div className="w-1/2 sm:w-[160px]">
+          <div className="w-[140px]">
             <Select value={selectedOutlet} onValueChange={(v: any) => setSelectedOutlet(v)}>
               <SelectTrigger className="w-full bg-background border-input font-medium">
                 <SelectValue placeholder="Semua Outlet" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="all">Semua Outlet</SelectItem>
                 <SelectItem value="atoz">AtoZ</SelectItem>
                 <SelectItem value="bosa">Bosa</SelectItem>
                 <SelectItem value="bodega">Bodega</SelectItem>
