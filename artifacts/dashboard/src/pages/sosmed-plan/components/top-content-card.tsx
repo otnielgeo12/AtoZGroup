@@ -22,7 +22,7 @@ export function TopContentCard() {
       setLoading(true);
       try {
         // Fetch recent published contents
-        const query: any = { status: "published", pageSize: 10 };
+        const query: any = { status: "published", pageSize: 100 };
         if (outlet !== "all") query.outlet = outlet;
         
         const res = await listContents(query);
