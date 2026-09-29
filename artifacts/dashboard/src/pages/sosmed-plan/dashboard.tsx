@@ -6,7 +6,7 @@ import {
   type ContentStats,
 } from "@/lib/sosmed-api";
 import { SosmedStatCard } from "./components/stat-card";
-import { InsightChartCard } from "./components/insight-chart-card";
+import { UnifiedInsightCard } from "./components/unified-insight-card";
 
 export function SosmedDashboard() {
   const [stats, setStats] = useState<ContentStats | null>(null);
@@ -91,14 +91,9 @@ export function SosmedDashboard() {
         />
       </div>
 
-      {/* Metric Charts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <InsightChartCard title="Views / Reach" dataKey="reach" color="#3b82f6" />
-        <InsightChartCard title="Impressions" dataKey="impressions" color="#a855f7" />
-        <InsightChartCard title="Likes" dataKey="likes" color="#ef4444" />
-        <InsightChartCard title="Comments" dataKey="comments" color="#f59e0b" />
-        <InsightChartCard title="Saves" dataKey="saves" color="#10b981" />
-        <InsightChartCard title="Shares" dataKey="shares" color="#0ea5e9" />
+      {/* Metric Charts Area */}
+      <div className="grid grid-cols-1 gap-6">
+        <UnifiedInsightCard />
       </div>
     </div>
   );
