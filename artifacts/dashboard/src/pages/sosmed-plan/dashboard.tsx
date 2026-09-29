@@ -91,8 +91,8 @@ export function SosmedDashboard() {
       {/* Main Charts Area */}
       <div className="flex flex-col gap-6">
         <PerformaTrendCard />
-        <TopContentCard />
         <MetricGridCards />
+        <TopContentCard />
       </div>
     </div>
   );
