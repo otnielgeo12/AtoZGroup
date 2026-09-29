@@ -65,7 +65,8 @@ export default function AddLadyPage() {
   const [removedPhotoIds, setRemovedPhotoIds] = useState<number[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const LADIES_API_URL = import.meta.env.VITE_LADIES_API_URL || "https://apid5.atozgroupsemarang.com";
+  const rawLadiesUrl = import.meta.env.VITE_LADIES_API_URL || "https://apid5.atozgroupsemarang.com";
+  const LADIES_API_URL = rawLadiesUrl.replace(/["'\r\n\t]+/g, "").trim().replace(/\/$/, "");
 
   // ── Load existing lady for edit ─────────────────────────────────────────
   const { isLoading: isLoadingLady, data: ladyData } = useQuery({
@@ -339,13 +340,7 @@ export default function AddLadyPage() {
                   </FormItem>
                 )} />
 
-                <FormField control={form.control} name="age" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Age</FormLabel>
-                    <FormControl><Input type="number" min={18} max={60} {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+
 
                 <FormField control={form.control} name="category" render={({ field }) => (
                   <FormItem>

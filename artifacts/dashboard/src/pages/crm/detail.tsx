@@ -212,7 +212,7 @@ export default function CrmDetailPage() {
         <MetricCard
           icon={<Coins className="w-5 h-5 text-emerald-600" />}
           label="Point Balance"
-          value={customer.pointBalance.toLocaleString("id-ID")}
+          value={(customer.pointBalance || 0).toLocaleString("id-ID")}
           sub="Loyalty points"
         />
         <MetricCard

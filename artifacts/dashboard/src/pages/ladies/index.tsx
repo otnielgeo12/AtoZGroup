@@ -50,7 +50,7 @@ export default function LadiesPage() {
 
       {/* Outlet Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {OUTLETS.map((outlet) => (
+        {OUTLETS.filter(outlet => outlet.slug !== 'infinity').map((outlet) => (
           <Card
             key={outlet.slug}
             className={`group relative overflow-hidden transition-all duration-500 hover:shadow-2xl border-2 bg-card/60 backdrop-blur-md ${outlet.border}`}

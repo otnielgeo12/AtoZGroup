@@ -119,10 +119,13 @@ export function ImageUpload({ value, onChange, className }: ImageUploadProps) {
               // Also map the original filename in case the uploader uses it.
               pathMap.current[file.name] = res.objectPath;
 
-              const rawBaseUrl = (import.meta as any).env?.VITE_API_URL || (import.meta as any).env?.VITE_CRM_API_URL || "https://apiclone.atozgroupsemarang.com";
+              const rawBaseUrl = (import.meta as any).env?.VITE_API_URL || (import.meta as any).env?.VITE_CRM_API_URL || "https://apiserver.atozgroupsemarang.com";
               const cleanedBaseUrl = rawBaseUrl.replace(/["'\r\n\t]+/g, "").trim().replace(/\/$/, "");
-              const baseUrl = (!cleanedBaseUrl || cleanedBaseUrl === "/" || cleanedBaseUrl.includes("dashboard.atozgroupsemarang.com")) ? "https://apiclone.atozgroupsemarang.com" : cleanedBaseUrl;
-              const fullUploadUrl = `${baseUrl}${res.uploadURL}`;
+              const baseUrl = (!cleanedBaseUrl || cleanedBaseUrl === "/" || cleanedBaseUrl.includes("dashboard.atozgroupsemarang.com")) ? "https://apiserver.atozgroupsemarang.com" : cleanedBaseUrl;
+              
+              // In dev mode, use relative URL to route through Vite proxy and avoid CORS
+              const isDev = import.meta.env.DEV;
+              const fullUploadUrl = isDev ? res.uploadURL : `${baseUrl}${res.uploadURL}`;
 
               return {
                 method: "POST",

@@ -546,6 +546,191 @@ paths:
               schema:
                 $ref: "#/components/schemas/DashboardSummary"
 
+  /outlets/{outletId}/beverages:
+    get:
+      operationId: listBeverages
+      tags: [beverages]
+      parameters:
+        - in: path
+          name: outletId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Beverages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Beverage"
+    post:
+      operationId: createBeverage
+      tags: [beverages]
+      parameters:
+        - in: path
+          name: outletId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBeverageBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Beverage"
+  /beverages/{id}:
+    get:
+      operationId: getBeverage
+      tags: [beverages]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Beverage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Beverage"
+    patch:
+      operationId: updateBeverage
+      tags: [beverages]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBeverageBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Beverage"
+    delete:
+      operationId: deleteBeverage
+      tags: [beverages]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /outlets/{outletId}/wines:
+    get:
+      operationId: listWines
+      tags: [wines]
+      parameters:
+        - in: path
+          name: outletId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Wines
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Wine"
+    post:
+      operationId: createWine
+      tags: [wines]
+      parameters:
+        - in: path
+          name: outletId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWineBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Wine"
+  /wines/{id}:
+    get:
+      operationId: getWine
+      tags: [wines]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Wine
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Wine"
+    patch:
+      operationId: updateWine
+      tags: [wines]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWineBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Wine"
+    delete:
+      operationId: deleteWine
+      tags: [wines]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
 components:
   schemas:
     HealthStatus:
@@ -955,99 +1140,6 @@ components:
             $ref: "#/components/schemas/MenuItem"
       required: [outletCount, menuItemCount, bannerCount, galleryCount, recentMenuItems]
 
-  /outlets/{outletId}/beverages:
-    get:
-      operationId: listBeverages
-      tags: [beverages]
-      parameters:
-        - in: path
-          name: outletId
-          required: true
-          schema:
-            type: integer
-      responses:
-        "200":
-          description: Beverages
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Beverage"
-    post:
-      operationId: createBeverage
-      tags: [beverages]
-      parameters:
-        - in: path
-          name: outletId
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateBeverageBody"
-      responses:
-        "201":
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Beverage"
-  /beverages/{id}:
-    get:
-      operationId: getBeverage
-      tags: [beverages]
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-      responses:
-        "200":
-          description: Beverage
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Beverage"
-    patch:
-      operationId: updateBeverage
-      tags: [beverages]
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateBeverageBody"
-      responses:
-        "200":
-          description: Updated
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Beverage"
-    delete:
-      operationId: deleteBeverage
-      tags: [beverages]
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-      responses:
-        "204":
-          description: Deleted
-
     Beverage:
       type: object
       properties:
@@ -1104,3 +1196,58 @@ components:
         featured:
           type: boolean
 
+    Wine:
+      type: object
+      properties:
+        id:
+          type: integer
+        outletId:
+          type: integer
+        category:
+          type: string
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        price:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+        featured:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, outletId, category, name, sortOrder, featured, createdAt, updatedAt]
+    CreateWineBody:
+      type: object
+      properties:
+        category:
+          type: string
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        price:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+        featured:
+          type: boolean
+      required: [category, name]
+    UpdateWineBody:
+      type: object
+      properties:
+        category:
+          type: string
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        price:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+        featured:
+          type: boolean

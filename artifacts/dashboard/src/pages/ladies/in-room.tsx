@@ -13,6 +13,8 @@ import {
   UserCheck,
   ShieldAlert,
   RefreshCw,
+  ChevronDown,
+  Check,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,35 +36,32 @@ import {
 } from "@/lib/ladies-api";
 import { useToast } from "@/hooks/use-toast";
 
-// Helper component for live countdown timer
-function SessionTimer({ endsAt }: { endsAt: string | null }) {
-  const [timeLeft, setTimeLeft] = useState<string>("Calculating...");
-  const [isExpired, setIsExpired] = useState<boolean>(false);
+// Helper component for live session timer (counts UP)
+function SessionTimer({ startedAt }: { startedAt: string | null }) {
+  const [elapsedTime, setElapsedTime] = useState<string>("Calculating...");
 
   useEffect(() => {
-    if (!endsAt) {
-      setTimeLeft("-- : -- : --");
+    if (!startedAt) {
+      setElapsedTime("00h 00m 00s");
       return;
     }
 
     const calculate = () => {
       // Parse database timestamp safely
-      const end = new Date(endsAt).getTime();
+      const start = new Date(startedAt).getTime();
       const now = Date.now();
-      const diff = end - now;
+      const diff = now - start;
 
       if (diff <= 0) {
-        setIsExpired(true);
-        setTimeLeft("00h 00m 00s (Expired)");
+        setElapsedTime("00h 00m 00s");
         return;
       }
 
-      setIsExpired(false);
       const hours = Math.floor(diff / (1000 * 60 * 60));
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-      setTimeLeft(
+      setElapsedTime(
         `${hours.toString().padStart(2, "0")}h ${minutes
           .toString()
           .padStart(2, "0")}m ${seconds.toString().padStart(2, "0")}s`
@@ -72,18 +71,14 @@ function SessionTimer({ endsAt }: { endsAt: string | null }) {
     calculate();
     const interval = setInterval(calculate, 1000);
     return () => clearInterval(interval);
-  }, [endsAt]);
+  }, [startedAt]);
 
   return (
     <div
-      className={`flex items-center gap-2 px-4 py-2 rounded-xl border font-mono font-bold text-sm shadow-sm ${
-        isExpired
-          ? "bg-red-500/10 text-red-500 border-red-500/30 animate-pulse"
-          : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-      }`}
+      className="flex items-center gap-2 px-4 py-2 rounded-xl border font-mono font-bold text-sm shadow-sm bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
     >
-      <Timer className={`w-4 h-4 ${isExpired ? "text-red-500" : "text-emerald-400"}`} />
-      <span>{timeLeft}</span>
+      <Timer className="w-4 h-4 text-emerald-400" />
+      <span>{elapsedTime}</span>
     </div>
   );
 }
@@ -91,13 +86,28 @@ function SessionTimer({ endsAt }: { endsAt: string | null }) {
 export default function LadiesInRoomPage() {
   const params = useParams<{ outlet: string }>();
   const [, setLocation] = useLocation();
-  const { getToken } = useAuth();
+  const { getToken, user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const [selectedRooms, setSelectedRooms] = useState<Record<number, string>>({});
+  
+  const ROOMS = [
+    { type: 'Superior', name: 'Monaco' },
+    { type: 'Superior', name: 'Tokyo' },
+    { type: 'Deluxe', name: 'Dubai' },
+    { type: 'Deluxe', name: 'Oslo' },
+    { type: 'Deluxe', name: 'Paris' },
+    { type: 'VIP', name: 'Milan' },
+    { type: 'VIP', name: 'Jakarta' },
+    { type: 'VIP', name: 'London' },
+    { type: 'VVIP', name: 'Vegas' }
+  ];
+
   const outlet = params.outlet || "district5";
   const outletName = outlet === "district5" ? "District5" : "Infinity";
-  const LADIES_API_URL = import.meta.env.VITE_LADIES_API_URL || "https://apid5.atozgroupsemarang.com";
+  const rawLadiesUrl = import.meta.env.VITE_LADIES_API_URL || "https://apid5.atozgroupsemarang.com";
+  const LADIES_API_URL = rawLadiesUrl.replace(/["'\r\n\t]+/g, "").trim().replace(/\/$/, "");
 
   // Fetch live bookings every 5 seconds
   const {
@@ -114,7 +124,7 @@ export default function LadiesInRoomPage() {
 
   // Start Booking Mutation
   const startMutation = useMutation({
-    mutationFn: (id: number) => startRoomBooking(id, getToken),
+    mutationFn: ({ id, roomName, adminName }: { id: number; roomName: string; adminName: string }) => startRoomBooking(id, getToken, roomName, adminName),
     onSuccess: () => {
       toast({
         title: "Session Started",
@@ -218,14 +228,6 @@ export default function LadiesInRoomPage() {
         </div>
       </div>
 
-      {/* Info Notice */}
-      <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 rounded-2xl p-4 flex items-start gap-3.5 shadow-sm">
-        <Sparkles className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-        <div className="text-xs text-muted-foreground leading-relaxed">
-          <span className="font-semibold text-foreground">Synchronized with VIP Landing Page:</span> When a customer confirms a booking on the landing page, the companion automatically appears here with <span className="text-amber-400 font-semibold">Waiting to Start</span> status. Click <span className="text-foreground font-semibold">Confirm</span> when the session begins. When the timer ends or you click Complete, the companion returns to <span className="text-emerald-400 font-semibold">Ready</span> status.
-        </div>
-      </div>
-
       {/* Loading State */}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -294,8 +296,7 @@ export default function LadiesInRoomPage() {
                     />
                     {isActive ? "Active in Room" : "Waiting to Start"}
                   </span>
-                  <span>{booking.hours} Hour(s) Booked</span>
-                </div>
+                  </div>
 
                 <CardContent className="p-6 space-y-5">
                   {/* Companion Profile Header */}
@@ -319,29 +320,44 @@ export default function LadiesInRoomPage() {
                         <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-500 uppercase tracking-wider border border-amber-500/20">
                           {booking.lady_category}
                         </span>
-                        <span className="text-xs text-muted-foreground font-medium">
-                          {booking.lady_age} yrs
-                        </span>
+
                       </div>
                       <h3 className="text-xl font-serif font-bold text-foreground truncate">
                         {booking.lady_name}
                       </h3>
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">
-                        {booking.notes || "No special instructions"}
-                      </p>
                     </div>
                   </div>
 
                   {/* Timer Display */}
-                  <div className="bg-background/60 rounded-xl p-3.5 border border-border/50 flex flex-col items-center justify-center gap-1.5">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                      {isActive ? "Live Countdown Timer" : "Session Duration"}
-                    </span>
+                  <div className="bg-background/60 rounded-xl p-4 border border-border/50 flex flex-col items-center justify-center gap-1.5 min-h-[90px]">
+                    {isActive && (
+                      <div className="flex flex-col items-center text-center">
+                        {booking.room_name && (
+                          <span className="text-sm font-semibold text-foreground/90">
+                            Room: <span className="text-amber-500 font-bold">{booking.room_name.replace(' (', ' : ').replace(')', '')}</span>
+                          </span>
+                        )}
+                        {booking.approved_by && (
+                          <span className="text-xs text-muted-foreground font-medium mt-0.5 mb-2">
+                            Handle by: {booking.approved_by}
+                          </span>
+                        )}
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">
+                          Live Session Timer
+                        </span>
+                      </div>
+                    )}
                     {isActive ? (
-                      <SessionTimer endsAt={booking.ends_at} />
+                      <SessionTimer startedAt={booking.started_at} />
                     ) : (
-                      <div className="text-lg font-serif font-bold text-amber-500">
-                        {booking.hours} Hour{booking.hours > 1 ? "s" : ""} Reserved
+                      <div className="text-sm font-semibold text-amber-500 text-center leading-snug px-2">
+                        {selectedRooms[booking.id] ? (
+                          <span>
+                            You Select <span className="font-bold text-amber-400">{selectedRooms[booking.id].replace(' (', ' ').replace(')', '')}</span> Room,<br />Please confirm
+                          </span>
+                        ) : (
+                          "Please Select the Room & Confirm"
+                        )}
                       </div>
                     )}
                   </div>
@@ -349,58 +365,71 @@ export default function LadiesInRoomPage() {
                   {/* Action Buttons */}
                   <div className="pt-2 flex items-center gap-2.5">
                     {isWaiting ? (
-                      <Button
-                        onClick={() => startMutation.mutate(booking.id)}
-                        disabled={startMutation.isPending}
-                        className="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black font-bold h-11 rounded-xl shadow-lg shadow-amber-500/10 gap-2 transition-all"
-                      >
-                        <Play className="w-4 h-4 fill-black" />
-                        Confirm
-                      </Button>
-                    ) : (
-                      <>
-                        {/* Overtime Button with Dropdown */}
+                      <div className="w-full flex items-center gap-2">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
                               variant="outline"
-                              disabled={overtimeMutation.isPending}
-                              className="flex-1 border-amber-500/40 text-amber-500 hover:bg-amber-500/10 hover:text-amber-400 font-bold h-11 rounded-xl gap-2 transition-all"
+                              className="flex-1 justify-between bg-background hover:bg-background border-amber-500/40 text-foreground font-medium rounded-xl h-11 px-3 hover:border-amber-500 min-w-0"
                             >
-                              <Plus className="w-4 h-4" />
-                              Overtime
+                              <span className="flex items-center gap-2 truncate min-w-0">
+                                {selectedRooms[booking.id] ? (
+                                  <>
+                                    <span className="w-2 h-2 rounded-full bg-foreground shrink-0" />
+                                    <span className="truncate">{selectedRooms[booking.id].replace(' (', ' : ').replace(')', '')}</span>
+                                  </>
+                                ) : (
+                                  <span className="text-muted-foreground truncate">Select Room...</span>
+                                )}
+                              </span>
+                              <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0 ml-1.5" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" className="w-44 rounded-xl border-border/60 bg-card/95 backdrop-blur-md">
-                            <DropdownMenuItem
-                              onClick={() => overtimeMutation.mutate({ id: booking.id, hours: 1 })}
-                              className="font-semibold cursor-pointer py-2.5"
-                            >
-                              <Plus className="w-3.5 h-3.5 mr-2 text-amber-500" />
-                              +1 Hour Overtime
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => overtimeMutation.mutate({ id: booking.id, hours: 2 })}
-                              className="font-semibold cursor-pointer py-2.5"
-                            >
-                              <Plus className="w-3.5 h-3.5 mr-2 text-amber-500" />
-                              +2 Hours Overtime
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => overtimeMutation.mutate({ id: booking.id, hours: 3 })}
-                              className="font-semibold cursor-pointer py-2.5"
-                            >
-                              <Plus className="w-3.5 h-3.5 mr-2 text-amber-500" />
-                              +3 Hours Overtime
-                            </DropdownMenuItem>
+                          <DropdownMenuContent align="start" className="w-[240px] rounded-xl border-border/60 bg-card/95 backdrop-blur-md p-1.5 shadow-xl max-h-[300px] overflow-y-auto">
+                            <div className="px-2 py-2 text-xs font-semibold text-muted-foreground mb-1">Select Room...</div>
+                            {ROOMS.map((r) => {
+                              const value = `${r.type} (${r.name})`;
+                              const display = `${r.type} : ${r.name}`;
+                              const isSelected = selectedRooms[booking.id] === value;
+                              return (
+                                <DropdownMenuItem
+                                  key={r.name}
+                                  onClick={() => setSelectedRooms({ ...selectedRooms, [booking.id]: value })}
+                                  className={`font-medium cursor-pointer py-2.5 px-3 rounded-lg flex items-center gap-2 ${isSelected ? 'bg-amber-500/10 text-amber-500' : ''}`}
+                                >
+                                  {isSelected ? (
+                                    <Check className="w-4 h-4 text-amber-500 shrink-0" />
+                                  ) : (
+                                    <span className="w-4 h-4 rounded-full border border-muted-foreground/30 shrink-0 bg-background" />
+                                  )}
+                                  {display}
+                                </DropdownMenuItem>
+                              );
+                            })}
                           </DropdownMenuContent>
                         </DropdownMenu>
-
+                        <Button
+                          onClick={() => {
+                            if (!selectedRooms[booking.id]) {
+                              toast({ title: "Room Required", description: "Please select a room first.", variant: "destructive" });
+                              return;
+                            }
+                            startMutation.mutate({ id: booking.id, roomName: selectedRooms[booking.id], adminName: user?.username || "Admin" });
+                          }}
+                          disabled={startMutation.isPending}
+                          className="bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black font-bold h-11 rounded-xl shadow-lg shadow-amber-500/10 gap-1.5 transition-all px-4 shrink-0"
+                        >
+                          <Play className="w-4 h-4 fill-black shrink-0" />
+                          Confirm
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
                         {/* End Session Button */}
                         <Button
                           onClick={() => completeMutation.mutate(booking.id)}
                           disabled={completeMutation.isPending}
-                          className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-11 rounded-xl shadow-lg shadow-emerald-500/10 gap-2 transition-all"
+                          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-11 rounded-xl shadow-lg shadow-emerald-500/10 gap-2 transition-all"
                         >
                           <CheckCircle2 className="w-4 h-4" />
                           Complete

@@ -1,5 +1,8 @@
-import { useState, useRef } from "react";
-import { MessageCircle, ImagePlus, X, Send, Loader2, Users, Trash2 } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import {
+  MessageCircle, ImagePlus, X, Send, Loader2, Users, Trash2,
+  CheckCircle, XCircle, Zap,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -20,6 +23,7 @@ import {
   sendWhatsAppDistrict5,
   sendWhatsAppInfinity,
   type CustomerListItem,
+  type SendWhatsAppResult,
 } from "@/lib/crm-api";
 
 // ─── Types & Config ───────────────────────────────────────────────────────────
@@ -29,6 +33,7 @@ interface WhatsAppModalProps {
   onOpenChange: (open: boolean) => void;
   selectedCustomers: CustomerListItem[];
   onClearSelection: () => void;
+  forceBrand?: BrandKey;
 }
 
 type BrandKey = "AtoZ" | "Bosa" | "Bodega" | "Lakers" | "Redhare" | "Oombee" | "Shiraz" | "District5" | "Infinity";
@@ -57,21 +62,32 @@ const ALL_BRANDS: BrandItem[] = [
 // ─── WhatsAppModal ────────────────────────────────────────────────────────────
 
 export function WhatsAppModal({
-  open, onOpenChange, selectedCustomers, onClearSelection,
+  open, onOpenChange, selectedCustomers, onClearSelection, forceBrand,
 }: WhatsAppModalProps) {
-  const { isSuperAdmin, isFnbAdmin, isEntertainmentAdmin } = useAuth();
+  const { user, isSuperAdmin, isFnbAdmin, isEntertainmentAdmin, isOutletAdmin } = useAuth();
   const [message, setMessage] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [sendingBrand, setSendingBrand] = useState<BrandKey | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Filter based on admin role (just like in Outlets page)
-  const showFnb = isSuperAdmin || isFnbAdmin || (!isFnbAdmin && !isEntertainmentAdmin); // superadmin or legacy admin sees all
-  const showEntertainment = isSuperAdmin || isEntertainmentAdmin || (!isFnbAdmin && !isEntertainmentAdmin);
+  // ─── Send result state ─────────────────────────────────────────────
+  const [sendResult, setSendResult] = useState<SendWhatsAppResult | null>(null);
 
-  const fnbBrands = ALL_BRANDS.filter(b => b.group === "fnb");
-  const entertainmentBrands = ALL_BRANDS.filter(b => b.group === "entertainment");
+  // Filter based on admin role
+  const allowedBrandKey = isOutletAdmin && user ? user.role.replace("admin_", "").toLowerCase() : null;
+  const fnbBrands = ALL_BRANDS.filter(b => b.group === "fnb" && (!isOutletAdmin || b.key.toLowerCase() === allowedBrandKey));
+  const entertainmentBrands = ALL_BRANDS.filter(b => b.group === "entertainment" && (!isOutletAdmin || b.key.toLowerCase() === allowedBrandKey));
+
+  const showFnb = isSuperAdmin || isFnbAdmin || (!isFnbAdmin && !isEntertainmentAdmin && !isOutletAdmin) || (isOutletAdmin && fnbBrands.length > 0);
+  const showEntertainment = isSuperAdmin || isEntertainmentAdmin || (!isFnbAdmin && !isEntertainmentAdmin && !isOutletAdmin) || (isOutletAdmin && entertainmentBrands.length > 0);
+
+  // ─── Reset state when modal opens ─────────────────────────────────
+  useEffect(() => {
+    if (open) {
+      setSendResult(null);
+    }
+  }, [open]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -90,6 +106,8 @@ export function WhatsAppModal({
 
   const handleSendBrand = async (brand: BrandKey) => {
     setSendingBrand(brand);
+    setSendResult(null);
+
     try {
       const payload = {
         recipients: selectedCustomers,
@@ -98,7 +116,7 @@ export function WhatsAppModal({
         imageUrl: imagePreview ?? undefined,
       };
 
-      let res = { success: true, message: "" };
+      let res: SendWhatsAppResult;
       switch (brand) {
         case "AtoZ":      res = await sendWhatsAppAtoZ(payload); break;
         case "Bosa":      res = await sendWhatsAppBosa(payload); break;
@@ -109,30 +127,35 @@ export function WhatsAppModal({
         case "Shiraz":    res = await sendWhatsAppShiraz(payload); break;
         case "District5": res = await sendWhatsAppDistrict5(payload); break;
         case "Infinity":  res = await sendWhatsAppInfinity(payload); break;
+        default:          res = { success: false, message: "Unknown brand" };
       }
 
-      if (brand === "AtoZ") {
-        alert(`[${brand}] ✅ ${res.message || `Berhasil mengirim pesan WhatsApp ke ${selectedCustomers.length} customer.`}`);
-      } else {
-        alert(
-          `[${brand}] WhatsApp API belum terhubung (masih dalam tahap pembuatan / kosong).\n\nPesan siap dikirim ke ${selectedCustomers.length} customer melalui akun ${brand}.`
-        );
-      }
-      setMessage("");
-      removeImage();
-      onOpenChange(false);
+      setSendResult(res);
+      setSendingBrand(null);
     } catch (error: any) {
       console.error(`Failed to send WhatsApp for ${brand}:`, error);
-      alert(error?.message || `Gagal mengirim pesan untuk ${brand}.`);
-    } finally {
+      setSendResult({
+        success: false,
+        message: error?.message || `Gagal mengirim pesan untuk ${brand}.`,
+      });
       setSendingBrand(null);
     }
   };
 
+  const handleCloseAfterSend = useCallback(() => {
+    setMessage("");
+    removeImage();
+    setSendResult(null);
+    setSendingBrand(null);
+    onOpenChange(false);
+  }, [onOpenChange]);
+
   const recipientCount = selectedCustomers.length;
+  const isSending = sendingBrand !== null;
+  const hasSendResult = sendResult !== null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={isSending ? undefined : onOpenChange}>
       <DialogContent className="sm:max-w-[580px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -148,199 +171,265 @@ export function WhatsAppModal({
 
         <div className="space-y-5 mt-2">
 
-          {/* Recipients summary */}
-          <div className="rounded-lg border border-green-200 bg-green-50/50 p-3 dark:border-green-900/50 dark:bg-green-950/20">
-            <div className="flex items-center justify-between">
+          {/* ── Send Result Panel ── */}
+          {hasSendResult && (
+            <div className={`rounded-lg border p-4 space-y-3 transition-all ${
+              sendResult.success
+                ? "border-green-300 bg-green-50/80 dark:border-green-800 dark:bg-green-950/30"
+                : "border-red-300 bg-red-50/80 dark:border-red-800 dark:bg-red-950/30"
+            }`}>
               <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-green-600 dark:text-green-400" />
-                <span className="text-sm font-medium text-green-800 dark:text-green-300">
-                  {recipientCount} Recipient{recipientCount !== 1 ? "s" : ""} Selected
+                {sendResult.success ? (
+                  <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                ) : (
+                  <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                )}
+                <span className={`text-sm font-semibold ${
+                  sendResult.success
+                    ? "text-green-800 dark:text-green-300"
+                    : "text-red-800 dark:text-red-300"
+                }`}>
+                  {sendResult.success ? "Pesan berhasil dikirim!" : "Gagal mengirim pesan"}
                 </span>
               </div>
+              <p className={`text-xs ${
+                sendResult.success
+                  ? "text-green-700 dark:text-green-400"
+                  : "text-red-700 dark:text-red-400"
+              }`}>
+                {sendResult.message}
+              </p>
+
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                className="h-7 text-xs text-muted-foreground hover:text-destructive"
-                onClick={onClearSelection}
+                className="w-full mt-2"
+                onClick={handleCloseAfterSend}
               >
-                <Trash2 className="w-3 h-3 mr-1" />Clear
+                <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
+                Tutup & Selesai
               </Button>
             </div>
+          )}
 
-            {/* Show first few names */}
-            {recipientCount > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {selectedCustomers.slice(0, 5).map((c) => (
-                  <span
-                    key={c.id}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-white border border-green-200 text-green-800 dark:bg-background dark:border-green-800 dark:text-green-300"
-                  >
-                    <span className="w-4 h-4 rounded-full bg-green-200 text-green-700 dark:bg-green-900 dark:text-green-300 flex items-center justify-center text-[9px] font-bold shrink-0">
-                      {c.fullName[0]?.toUpperCase()}
+          {/* ── Recipients summary ── */}
+          {!isSending && !hasSendResult && (
+            <>
+              <div className="rounded-lg border border-green-200 bg-green-50/50 p-3 dark:border-green-900/50 dark:bg-green-950/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-green-600 dark:text-green-400" />
+                    <span className="text-sm font-medium text-green-800 dark:text-green-300">
+                      {recipientCount} Recipient{recipientCount !== 1 ? "s" : ""} Selected
                     </span>
-                    <span className="truncate max-w-[100px]">{c.fullName}</span>
-                    <span className="text-green-400">•</span>
-                    <span className="text-[10px] text-green-600 dark:text-green-400 tabular-nums">{c.phone}</span>
-                  </span>
-                ))}
-                {recipientCount > 5 && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-white border border-green-200 text-green-600 font-medium dark:bg-background dark:border-green-800 dark:text-green-400">
-                    +{recipientCount - 5} more
-                  </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-muted-foreground hover:text-destructive"
+                    onClick={onClearSelection}
+                  >
+                    <Trash2 className="w-3 h-3 mr-1" />Clear
+                  </Button>
+                </div>
+
+                {/* Show first few names */}
+                {recipientCount > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {selectedCustomers.slice(0, 5).map((c) => (
+                      <span
+                        key={c.id}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-white border border-green-200 text-green-800 dark:bg-background dark:border-green-800 dark:text-green-300"
+                      >
+                        <span className="w-4 h-4 rounded-full bg-green-200 text-green-700 dark:bg-green-900 dark:text-green-300 flex items-center justify-center text-[9px] font-bold shrink-0">
+                          {c.fullName[0]?.toUpperCase()}
+                        </span>
+                        <span className="truncate max-w-[100px]">{c.fullName}</span>
+                        <span className="text-green-400">•</span>
+                        <span className="text-[10px] text-green-600 dark:text-green-400 tabular-nums">{c.phone}</span>
+                      </span>
+                    ))}
+                    {recipientCount > 5 && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-white border border-green-200 text-green-600 font-medium dark:bg-background dark:border-green-800 dark:text-green-400">
+                        +{recipientCount - 5} more
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
 
-          {/* Message content */}
-          <div className="space-y-2">
-            <Label htmlFor="wa-message" className="text-sm font-medium">
-              Message Content
-            </Label>
-            <Textarea
-              id="wa-message"
-              placeholder="Type your promotional message here...\n\nExample:\nHi {{name}}, we have a special promo just for you! 🎉\nVisit us this weekend and get 20% off."
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              className="min-h-[120px] resize-y"
-              data-testid="wa-message-input"
-            />
-            <p className="text-[11px] text-muted-foreground">
-              Tip: Use <code className="px-1 py-0.5 bg-muted rounded text-xs">{`{{name}}`}</code> to personalize the message with each customer's name.
-            </p>
-          </div>
-
-          {/* Image / Voucher upload */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">
-              Promotional Image / Voucher
-              <span className="text-muted-foreground font-normal ml-1">(optional)</span>
-            </Label>
-
-            {imagePreview ? (
-              <div className="relative rounded-lg border border-border overflow-hidden bg-muted/30 group">
-                <img
-                  src={imagePreview}
-                  alt="Promotional preview"
-                  className="w-full max-h-[200px] object-contain"
+              {/* ── Message content ── */}
+              <div className="space-y-2">
+                <Label htmlFor="wa-message" className="text-sm font-medium">
+                  Message Content
+                </Label>
+                <Textarea
+                  id="wa-message"
+                  placeholder={"Ketik isi promo Anda di sini...\n\nContoh:\nKami punya promo spesial diskon 20% khusus untuk Anda akhir pekan ini! 🎉"}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  className="min-h-[120px] resize-y"
+                  data-testid="wa-message-input"
                 />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                  onClick={removeImage}
-                >
-                  <X className="w-3.5 h-3.5" />
-                </Button>
-                <div className="px-3 py-2 bg-muted/80 border-t text-xs text-muted-foreground flex items-center justify-between">
-                  <span className="truncate">{imageFile?.name ?? "Uploaded image"}</span>
-                  <span>{imageFile ? `${(imageFile.size / 1024).toFixed(1)} KB` : ""}</span>
-                </div>
+                <p className="text-[11px] text-muted-foreground text-amber-600 dark:text-amber-500">
+                  Catatan: Template Meta secara otomatis akan menambahkan sapaan <b>"Halo [Nama Pelanggan],"</b> di awal pesan. Anda cukup mengetik isi promonya saja.
+                </p>
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full h-32 rounded-lg border-2 border-dashed border-muted-foreground/25 hover:border-green-400 hover:bg-green-50/30 transition-colors flex flex-col items-center justify-center gap-2 cursor-pointer group"
-                data-testid="wa-image-upload"
-              >
-                <div className="p-2 rounded-full bg-muted group-hover:bg-green-100 transition-colors dark:group-hover:bg-green-950">
-                  <ImagePlus className="w-5 h-5 text-muted-foreground group-hover:text-green-600 transition-colors dark:group-hover:text-green-400" />
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-medium text-muted-foreground group-hover:text-green-700 transition-colors dark:group-hover:text-green-300">
-                    Click to upload image
-                  </p>
-                  <p className="text-[11px] text-muted-foreground/70">
-                    PNG, JPG, or GIF up to 5MB
-                  </p>
-                </div>
-              </button>
-            )}
 
-            <Input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleImageSelect}
-              data-testid="wa-image-input"
-            />
-          </div>
-
-          {/* Send Action Section: Brand Buttons Filtered by Role */}
-          <div className="pt-4 border-t mt-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
-                <Send className="w-4 h-4 text-green-600 dark:text-green-400" />
-                Select Sender Brand ({recipientCount} recipients)
-              </Label>
-              <span className="text-[11px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-medium border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800">
-                API Under Construction
-              </span>
-            </div>
-
-            {/* F&B Group */}
-            {showFnb && (
+              {/* ── Image / Voucher upload ── */}
               <div className="space-y-2">
-                {showEntertainment && (
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    <span className="w-2 h-2 rounded-full bg-orange-500 inline-block" />
-                    F&B Group
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-2.5">
-                  {fnbBrands.map((b) => (
+                <Label className="text-sm font-medium">
+                  Promotional Image / Voucher
+                  <span className="text-muted-foreground font-normal ml-1">(optional)</span>
+                </Label>
+
+                {imagePreview ? (
+                  <div className="relative rounded-lg border border-border overflow-hidden bg-muted/30 group">
+                    <img
+                      src={imagePreview}
+                      alt="Promotional preview"
+                      className="w-full max-h-[200px] object-contain"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
                     <Button
-                      key={b.key}
-                      type="button"
-                      className={`shadow-sm h-11 font-medium transition-all duration-200 hover:shadow hover:scale-[1.01] active:scale-[0.99] border ${b.className}`}
-                      disabled={!message.trim() || recipientCount === 0 || sendingBrand !== null}
-                      onClick={() => handleSendBrand(b.key)}
-                      data-testid={`wa-send-${b.key.toLowerCase()}`}
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                      onClick={removeImage}
                     >
-                      {sendingBrand === b.key ? (
-                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sending {b.key}…</>
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                    <div className="px-3 py-2 bg-muted/80 border-t text-xs text-muted-foreground flex items-center justify-between">
+                      <span className="truncate">{imageFile?.name ?? "Uploaded image"}</span>
+                      <span>{imageFile ? `${(imageFile.size / 1024).toFixed(1)} KB` : ""}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full h-32 rounded-lg border-2 border-dashed border-muted-foreground/25 hover:border-green-400 hover:bg-green-50/30 transition-colors flex flex-col items-center justify-center gap-2 cursor-pointer group"
+                    data-testid="wa-image-upload"
+                  >
+                    <div className="p-2 rounded-full bg-muted group-hover:bg-green-100 transition-colors dark:group-hover:bg-green-950">
+                      <ImagePlus className="w-5 h-5 text-muted-foreground group-hover:text-green-600 transition-colors dark:group-hover:text-green-400" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-muted-foreground group-hover:text-green-700 transition-colors dark:group-hover:text-green-300">
+                        Click to upload image
+                      </p>
+                      <p className="text-[11px] text-muted-foreground/70">
+                        PNG, JPG, or GIF up to 5MB
+                      </p>
+                    </div>
+                  </button>
+                )}
+
+                <Input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageSelect}
+                  data-testid="wa-image-input"
+                />
+              </div>
+
+              {/* ── Send Action Section ── */}
+              <div className="pt-4 border-t mt-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
+                    <Send className="w-4 h-4 text-green-600 dark:text-green-400" />
+                    Select Sender Brand ({recipientCount} recipients)
+                  </Label>
+                  <span className="text-[11px] bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-medium border border-green-300 dark:bg-green-950/60 dark:text-green-300 dark:border-green-800 flex items-center gap-1">
+                    <Zap className="w-3 h-3" />
+                    Meta WhatsApp API
+                  </span>
+                </div>
+
+                {/* F&B Group */}
+                {/* ── Brand Selection ── */}
+                {forceBrand ? (
+                  <div className="space-y-2 mt-2">
+                    <Button
+                      type="button"
+                      className="w-full h-11 font-medium bg-green-600 hover:bg-green-700 text-white"
+                      disabled={!message.trim() || recipientCount === 0 || isSending}
+                      onClick={() => handleSendBrand(forceBrand)}
+                    >
+                      {sendingBrand === forceBrand ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sending…</>
                       ) : (
-                        <><Send className="w-4 h-4 mr-2 opacity-90" />{b.label}</>
+                        <><Send className="w-4 h-4 mr-2" />Send Message ({forceBrand})</>
                       )}
                     </Button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Entertainment Group */}
-            {showEntertainment && (
-              <div className="space-y-2">
-                {showFnb && (
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider pt-1">
-                    <span className="w-2 h-2 rounded-full bg-purple-500 inline-block" />
-                    Entertainment Group
                   </div>
+                ) : (
+                  <>
+                    {showFnb && (
+                      <div className="space-y-2">
+                        {showEntertainment && (
+                          <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                            <span className="w-2 h-2 rounded-full bg-orange-500 inline-block" />
+                            F&B Group
+                          </div>
+                        )}
+                        <div className="grid grid-cols-2 gap-2.5">
+                          {fnbBrands.map((b) => (
+                            <Button
+                              key={b.key}
+                              type="button"
+                              className={`shadow-sm h-11 font-medium transition-all duration-200 hover:shadow hover:scale-[1.01] active:scale-[0.99] border ${b.className}`}
+                              disabled={!message.trim() || recipientCount === 0 || isSending}
+                              onClick={() => handleSendBrand(b.key)}
+                              data-testid={`wa-send-${b.key.toLowerCase()}`}
+                            >
+                              {sendingBrand === b.key ? (
+                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sending {b.key}…</>
+                              ) : (
+                                <><Send className="w-4 h-4 mr-2 opacity-90" />{b.label}</>
+                              )}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Entertainment Group */}
+                    {showEntertainment && (
+                      <div className="space-y-2">
+                        {showFnb && (
+                          <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider pt-1">
+                            <span className="w-2 h-2 rounded-full bg-purple-500 inline-block" />
+                            Entertainment Group
+                          </div>
+                        )}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                          {entertainmentBrands.map((b) => (
+                            <Button
+                              key={b.key}
+                              type="button"
+                              className={`shadow-sm h-11 font-medium transition-all duration-200 hover:shadow hover:scale-[1.01] active:scale-[0.99] border ${b.className}`}
+                              disabled={!message.trim() || recipientCount === 0 || isSending}
+                              onClick={() => handleSendBrand(b.key)}
+                              data-testid={`wa-send-${b.key.toLowerCase()}`}
+                            >
+                              {sendingBrand === b.key ? (
+                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sending {b.key}…</>
+                              ) : (
+                                <><Send className="w-4 h-4 mr-2 opacity-90" />{b.label}</>
+                              )}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                  {entertainmentBrands.map((b) => (
-                    <Button
-                      key={b.key}
-                      type="button"
-                      className={`shadow-sm h-11 font-medium transition-all duration-200 hover:shadow hover:scale-[1.01] active:scale-[0.99] border ${b.className}`}
-                      disabled={!message.trim() || recipientCount === 0 || sendingBrand !== null}
-                      onClick={() => handleSendBrand(b.key)}
-                      data-testid={`wa-send-${b.key.toLowerCase()}`}
-                    >
-                      {sendingBrand === b.key ? (
-                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sending {b.key}…</>
-                      ) : (
-                        <><Send className="w-4 h-4 mr-2 opacity-90" />{b.label}</>
-                      )}
-                    </Button>
-                  ))}
-                </div>
               </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
 
         <DialogFooter className="pt-2">
@@ -348,14 +437,13 @@ export function WhatsAppModal({
             type="button"
             variant="outline"
             className="w-full sm:w-auto"
-            onClick={() => onOpenChange(false)}
-            disabled={sendingBrand !== null}
+            onClick={hasSendResult ? handleCloseAfterSend : () => onOpenChange(false)}
+            disabled={isSending}
           >
-            Cancel
+            {hasSendResult ? "Tutup" : "Cancel"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
-

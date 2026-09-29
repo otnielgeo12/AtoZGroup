@@ -65,8 +65,9 @@ export default defineConfig(({ mode }) => {
   // Server targets
   const API_SERVER_HOST = "apiserver.atozgroupsemarang.com";
   const API_SERVER = `https://${API_SERVER_HOST}`;   // General API (auth, users, images, etc.)
-  const API_CLONE  = "https://apiclone.atozgroupsemarang.com";    // CRM data only
-  const API_D5     = "https://apid5.atozgroupsemarang.com";       // Ladies menu
+  const API_CLONE = "http://apicrm.atozgroupsemarang.com";    // CRM data only
+  const API_D5 = "https://apid5.atozgroupsemarang.com";       // Ladies menu
+  const WA_API = env.VITE_WA_API_URL || "https://apiwa.atozgroupsemarang.com"; // WhatsApp CRM API (Wablas)
 
   return {
     base: basePath,
@@ -75,17 +76,17 @@ export default defineConfig(({ mode }) => {
       tailwindcss({ optimize: false }),
       runtimeErrorOverlay(),
       ...(env.NODE_ENV !== "production" &&
-      env.REPL_ID !== undefined
+        env.REPL_ID !== undefined
         ? [
-            import("@replit/vite-plugin-cartographer").then((m) =>
-              m.cartographer({
-                root: path.resolve(import.meta.dirname, ".."),
-              }),
-            ),
-            import("@replit/vite-plugin-dev-banner").then((m) =>
-              m.devBanner(),
-            ),
-          ]
+          import("@replit/vite-plugin-cartographer").then((m) =>
+            m.cartographer({
+              root: path.resolve(import.meta.dirname, ".."),
+            }),
+          ),
+          import("@replit/vite-plugin-dev-banner").then((m) =>
+            m.devBanner(),
+          ),
+        ]
         : []),
       // ── Local Auth Middleware Plugin ───────────────────────────────
       // Handles /api/auth/* locally first. If credentials don't match
@@ -264,9 +265,10 @@ export default defineConfig(({ mode }) => {
             try {
               const u = new URL(env.VITE_CRM_API_URL || API_CLONE);
               return u.origin;
-            } catch(e) { return API_CLONE; }
+            } catch (e) { return API_CLONE; }
           })(),
           changeOrigin: true,
+          secure: false,
           rewrite: (path: string) => path.replace(/^\/vsoft-api/, ""),
           configure: (proxy, _options) => {
             proxy.on("error", (err, _req, _res) => {
@@ -280,12 +282,28 @@ export default defineConfig(({ mode }) => {
             });
           },
         },
+        // ── WhatsApp CRM API → wa-crm-api (Wablas Gateway) ──
+        "/wa-api": {
+          target: WA_API,
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path: string) => path.replace(/^\/wa-api/, ""),
+          configure: (proxy, _options) => {
+            proxy.on("error", (err, _req, _res) => {
+              console.log("[wa-api proxy error]", err.message);
+            });
+            proxy.on("proxyReq", (proxyReq, req, _res) => {
+              console.log("→ WA:", req.method, proxyReq.path);
+            });
+          },
+        },
         // ── General API → apiserver (auth, users, banners, images, etc.) ──
         // Auth requests that match local credentials are handled by middleware above.
         // All other requests (including non-local auth) pass through to apiserver.
         "/api": {
           target: API_SERVER,
           changeOrigin: true,
+          secure: false,
           configure: (proxy, _options) => {
             proxy.on("error", (err, _req, res) => {
               console.log("[api proxy error]", err.message);

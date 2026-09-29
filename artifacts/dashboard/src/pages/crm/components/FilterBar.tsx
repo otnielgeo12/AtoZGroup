@@ -4,12 +4,18 @@
  * Layout:
  *   [🔍 Search ──────────] [Start Date] [End Date] [Outlet ▾] [× Clear]
  */
-import { X, Search, CalendarDays, UserPlus } from "lucide-react";
+import { useState } from "react";
+import { X, Search, CalendarDays, UserPlus, Check, ChevronsUpDown, Utensils, Wine, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { Outlet } from "@/lib/crm-api";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -17,15 +23,14 @@ import type { Outlet } from "@/lib/crm-api";
 export interface FilterState {
   search:    string;
   outletId:  string;
-  foodCategory: string;
-  beverageCategory: string;
+  category:  string;
   startDate: string;   // YYYY-MM-DD
   endDate:   string;   // YYYY-MM-DD
   status:    string;
 }
 
 export const EMPTY_FILTERS: FilterState = {
-  search: "", outletId: "", foodCategory: "", beverageCategory: "", startDate: "", endDate: "", status: "",
+  search: "", outletId: "", category: "", startDate: "", endDate: "", status: "",
 };
 
 interface FilterBarProps {
@@ -39,17 +44,24 @@ interface FilterBarProps {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function hasActiveFilters(f: FilterState) {
-  return f.search || f.outletId || f.foodCategory || f.beverageCategory || f.startDate || f.endDate || f.status;
+  return f.search || f.outletId || f.category || f.startDate || f.endDate || f.status;
 }
 
 // ─── FilterBar ────────────────────────────────────────────────────────────────
 
 export function FilterBar({ filters, outlets, categories, onChange, isLoadingInsights }: FilterBarProps) {
+  const [categoryOpen, setCategoryOpen] = useState(false);
+
   const update = (partial: Partial<FilterState>) =>
     onChange({ ...filters, ...partial });
 
-  const foodCategories = categories.filter(c => ["FOOD", "SNACK"].includes(c.code));
-  const bevCategories = categories.filter(c => ["ALKOHOL", "BEV", "NON ALK", "WINE"].includes(c.code));
+  // Group categories dynamically by main category name
+  const groupedCategories = categories.reduce((acc, cat) => {
+    const mainGroup = cat.name || "OTHER";
+    if (!acc[mainGroup]) acc[mainGroup] = [];
+    acc[mainGroup].push(cat);
+    return acc;
+  }, {} as Record<string, typeof categories>);
 
   return (
     <div className="space-y-3">
@@ -66,35 +78,85 @@ export function FilterBar({ filters, outlets, categories, onChange, isLoadingIns
           />
         </div>
 
-        <Select
-          value={filters.foodCategory || "__all__"}
-          onValueChange={(v) => update({ foodCategory: v === "__all__" ? "" : v })}
-        >
-          <SelectTrigger className="h-9 w-full sm:w-[150px]" data-testid="filter-food">
-            <SelectValue placeholder="All Foods" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">All Foods</SelectItem>
-            {foodCategories.map((c) => (
-              <SelectItem key={c.sub_code} value={c.sub_code}>{c.sub_name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={filters.beverageCategory || "__all__"}
-          onValueChange={(v) => update({ beverageCategory: v === "__all__" ? "" : v })}
-        >
-          <SelectTrigger className="h-9 w-full sm:w-[150px]" data-testid="filter-beverage">
-            <SelectValue placeholder="All Beverages" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">All Beverages</SelectItem>
-            {bevCategories.map((c) => (
-              <SelectItem key={c.sub_code} value={c.sub_code}>{c.sub_name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={categoryOpen}
+              className={cn(
+                "h-9 w-full sm:w-[240px] justify-between font-normal shrink-0",
+                filters.category ? "text-foreground" : "text-muted-foreground"
+              )}
+              data-testid="filter-category"
+            >
+              {filters.category ? (
+                <div className="flex items-center gap-1.5 truncate">
+                  {categories.find(c => c.sub_code === filters.category)?.name === "BEVERAGE" ? (
+                    <Wine className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+                  ) : categories.find(c => c.sub_code === filters.category)?.name === "FOOD" ? (
+                    <Utensils className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                  ) : null}
+                  <span className="truncate">
+                    {categories.find(c => c.sub_code === filters.category)?.sub_name || filters.category}
+                  </span>
+                </div>
+              ) : (
+                "All Categories"
+              )}
+              <div className="flex items-center gap-1 shrink-0 ml-2">
+                {filters.category ? (
+                  <div
+                    role="button"
+                    className="h-4 w-4 rounded-sm hover:bg-muted/80 flex items-center justify-center shrink-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      update({ category: "" });
+                    }}
+                  >
+                    <X className="w-3 h-3 opacity-60" />
+                  </div>
+                ) : (
+                  <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                )}
+              </div>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[280px] p-0" align="start">
+            <Command>
+              <CommandInput placeholder="Search category..." />
+              <CommandList>
+                <CommandEmpty>No category found.</CommandEmpty>
+                {Object.entries(groupedCategories).sort(([a], [b]) => a.localeCompare(b)).map(([mainCat, subCats]) => (
+                  <CommandGroup key={mainCat} heading={mainCat}>
+                    {subCats.map((c) => (
+                      <CommandItem
+                        key={c.sub_code}
+                        value={c.sub_name}
+                        onSelect={() => {
+                          update({ category: c.sub_code === filters.category ? "" : c.sub_code });
+                          setCategoryOpen(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            filters.category === c.sub_code ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        <div className="flex items-center gap-2 truncate">
+                          {mainCat === "BEVERAGE" && <Wine className="w-3 h-3 text-purple-400 shrink-0" />}
+                          {mainCat === "FOOD" && <Utensils className="w-3 h-3 text-orange-400 shrink-0" />}
+                          <span className="truncate">{c.sub_name}</span>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                ))}
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
 
         <Select
           value={filters.outletId || "__all__"}

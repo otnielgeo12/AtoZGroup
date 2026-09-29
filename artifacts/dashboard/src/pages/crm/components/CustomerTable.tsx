@@ -4,6 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import type { CustomerListItem, CustomerStatus } from "@/lib/crm-api";
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
@@ -49,7 +50,7 @@ function Pagination({ page, pageSize, total, onPage, onPageSize }: PaginationPro
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {[10, 25, 50].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+              {[10, 25, 50, 100].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -90,8 +91,9 @@ interface CustomerTableProps {
   onView:      (c: CustomerListItem) => void;
   onEdit:      (c: CustomerListItem) => void;
   selectedIds:    Set<string>;
-  onToggle:       (id: string) => void;
-  onToggleAll:    (ids: string[], checked: boolean) => void;
+  onToggle:       (c: CustomerListItem) => void;
+  onToggleAll:    (customers: CustomerListItem[], checked: boolean) => void;
+  activeCategory?: string;
 }
 
 export function CustomerTable({
@@ -99,6 +101,7 @@ export function CustomerTable({
   page, pageSize, total, onPage, onPageSize,
   onView, onEdit,
   selectedIds, onToggle, onToggleAll,
+  activeCategory,
 }: CustomerTableProps) {
   const paginated = customers;
   const COL_COUNT = 13;
@@ -111,12 +114,17 @@ export function CustomerTable({
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent bg-muted/30">
-              <TableHead className="pl-4 w-[44px]" onClick={(e) => e.stopPropagation()}>
+              <TableHead 
+                className="pl-4 w-[44px] cursor-pointer" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleAll(paginated, !allOnPageSelected);
+                }}
+              >
                 <Checkbox
                   checked={allOnPageSelected ? true : someOnPageSelected ? "indeterminate" : false}
-                  onCheckedChange={(checked) => {
-                    onToggleAll(paginated.map(c => c.id), !!checked);
-                  }}
+                  onCheckedChange={() => {}}
+                  style={{ pointerEvents: 'none' }}
                   aria-label="Select all on page"
                   data-testid="checkbox-select-all"
                 />
@@ -129,8 +137,8 @@ export function CustomerTable({
               <TableHead className="min-w-[140px]">Food Prefs</TableHead>
               <TableHead className="min-w-[140px]">Beverage Prefs</TableHead>
               <TableHead className="text-right min-w-[120px]">Spending</TableHead>
-              <TableHead className="text-right min-w-[80px]">Visits</TableHead>
-              <TableHead className="text-right min-w-[90px]">Points</TableHead>
+              <TableHead className="min-w-[120px]">Location</TableHead>
+              <TableHead className="text-right min-w-[90px]">Visits</TableHead>
               <TableHead className="min-w-[100px]">Status</TableHead>
               <TableHead className="text-right pr-4 min-w-[90px]">Actions</TableHead>
             </TableRow>
@@ -168,10 +176,17 @@ export function CustomerTable({
                   data-testid={`crm-row-${c.id}`}
                 >
                   {/* Checkbox */}
-                  <TableCell className="pl-4" onClick={(e) => e.stopPropagation()}>
+                  <TableCell 
+                    className="pl-4 cursor-pointer" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggle(c);
+                    }}
+                  >
                     <Checkbox
                       checked={selectedIds.has(c.id)}
-                      onCheckedChange={() => onToggle(c.id)}
+                      onCheckedChange={() => {}}
+                      style={{ pointerEvents: 'none' }}
                       aria-label={`Select ${c.fullName}`}
                       data-testid={`checkbox-${c.id}`}
                     />
@@ -217,14 +232,6 @@ export function CustomerTable({
                       <span className="font-medium text-[13px] text-foreground truncate max-w-[140px]">
                         {c.primaryOutletName && c.primaryOutletName !== "—" ? c.primaryOutletName : "All Outlets"}
                       </span>
-                      {(c.city || c.province || c.address) && (
-                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                          <MapPin className="w-2.5 h-2.5 shrink-0" />
-                          <span className="truncate max-w-[140px]">
-                            {[c.city, c.province].filter(Boolean).join(", ") || c.address || ""}
-                          </span>
-                        </div>
-                      )}
                     </div>
                   </TableCell>
 
@@ -242,17 +249,39 @@ export function CustomerTable({
                   {/* Food Preferences */}
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <div className="flex flex-wrap gap-1">
-                      {c.foodPreferences.length > 0 ? (
-                        c.foodPreferences.slice(0, 3).map((pref, i) => (
-                          <span key={i} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-50 text-orange-700 border border-orange-200">
-                            <Utensils className="w-2.5 h-2.5" />{pref}
-                          </span>
-                        ))
-                      ) : (
+                      {c.foodPreferences.length > 0 ? (() => {
+                        const sorted = [...c.foodPreferences].sort((a, b) => {
+                          if (!activeCategory) return 0;
+                          const catUpper = activeCategory.toUpperCase();
+                          const aMatch = a.toUpperCase().includes(catUpper);
+                          const bMatch = b.toUpperCase().includes(catUpper);
+                          return aMatch === bMatch ? 0 : aMatch ? -1 : 1;
+                        });
+                        return (
+                          <>
+                            {sorted.slice(0, 3).map((pref, i) => {
+                              const isMatch = activeCategory && pref.toUpperCase().includes(activeCategory.toUpperCase());
+                              return (
+                                <span
+                                  key={i}
+                                  className={cn(
+                                    "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border",
+                                    isMatch
+                                      ? "bg-emerald-100 text-emerald-800 border-emerald-400 ring-1 ring-emerald-300"
+                                      : "bg-orange-50 text-orange-700 border-orange-200"
+                                  )}
+                                >
+                                  <Utensils className="w-2.5 h-2.5" />{pref}
+                                </span>
+                              );
+                            })}
+                            {sorted.length > 3 && (
+                              <span className="text-[10px] text-muted-foreground">+{sorted.length - 3}</span>
+                            )}
+                          </>
+                        );
+                      })() : (
                         <span className="text-[11px] text-muted-foreground">—</span>
-                      )}
-                      {c.foodPreferences.length > 3 && (
-                        <span className="text-[10px] text-muted-foreground">+{c.foodPreferences.length - 3}</span>
                       )}
                     </div>
                   </TableCell>
@@ -260,17 +289,39 @@ export function CustomerTable({
                   {/* Beverage Preferences */}
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <div className="flex flex-wrap gap-1">
-                      {c.beveragePreferences.length > 0 ? (
-                        c.beveragePreferences.slice(0, 3).map((pref, i) => (
-                          <span key={i} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-50 text-purple-700 border border-purple-200">
-                            <Wine className="w-2.5 h-2.5" />{pref}
-                          </span>
-                        ))
-                      ) : (
+                      {c.beveragePreferences.length > 0 ? (() => {
+                        const sorted = [...c.beveragePreferences].sort((a, b) => {
+                          if (!activeCategory) return 0;
+                          const catUpper = activeCategory.toUpperCase();
+                          const aMatch = a.toUpperCase().includes(catUpper);
+                          const bMatch = b.toUpperCase().includes(catUpper);
+                          return aMatch === bMatch ? 0 : aMatch ? -1 : 1;
+                        });
+                        return (
+                          <>
+                            {sorted.slice(0, 3).map((pref, i) => {
+                              const isMatch = activeCategory && pref.toUpperCase().includes(activeCategory.toUpperCase());
+                              return (
+                                <span
+                                  key={i}
+                                  className={cn(
+                                    "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border",
+                                    isMatch
+                                      ? "bg-emerald-100 text-emerald-800 border-emerald-400 ring-1 ring-emerald-300"
+                                      : "bg-purple-50 text-purple-700 border-purple-200"
+                                  )}
+                                >
+                                  <Wine className="w-2.5 h-2.5" />{pref}
+                                </span>
+                              );
+                            })}
+                            {sorted.length > 3 && (
+                              <span className="text-[10px] text-muted-foreground">+{sorted.length - 3}</span>
+                            )}
+                          </>
+                        );
+                      })() : (
                         <span className="text-[11px] text-muted-foreground">—</span>
-                      )}
-                      {c.beveragePreferences.length > 3 && (
-                        <span className="text-[10px] text-muted-foreground">+{c.beveragePreferences.length - 3}</span>
                       )}
                     </div>
                   </TableCell>
@@ -278,12 +329,19 @@ export function CustomerTable({
                   {/* Spending */}
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     {c.totalSpending > 0 ? (
-                      <span className="font-semibold text-[13px] text-foreground">
-                        Rp {c.totalSpending.toLocaleString("id-ID")}
-                      </span>
+                      <div className="font-semibold text-emerald-600">
+                        Rp {(c.totalSpending || 0).toLocaleString("id-ID")}
+                      </div>
                     ) : (
                       <span className="text-[11px] text-muted-foreground">—</span>
                     )}
+                  </TableCell>
+
+                  {/* Location */}
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="text-xs">{[c.city, c.province].filter(Boolean).join(", ") || c.address || "—"}</span>
+                    </div>
                   </TableCell>
 
                   {/* Visits */}
@@ -295,13 +353,6 @@ export function CustomerTable({
                     ) : (
                       <span className="text-[11px] text-muted-foreground">—</span>
                     )}
-                  </TableCell>
-
-                  {/* Points */}
-                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      {c.pointBalance.toLocaleString("id-ID")} pts
-                    </span>
                   </TableCell>
 
                   {/* Status */}

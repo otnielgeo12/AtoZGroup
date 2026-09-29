@@ -22,7 +22,12 @@ import {
   getGetOutletQueryKey,
   getListMenuItemsQueryKey,
   getListBeveragesQueryKey,
-  getListPromotionsQueryKey
+  getListPromotionsQueryKey,
+  useListWines,
+  useCreateWine,
+  useUpdateWine,
+  useDeleteWine,
+  getListWinesQueryKey
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getImageUrl } from "@/lib/assets";
@@ -96,6 +101,17 @@ const menuItemSchema = z.object({
 });
 
 type MenuItemFormValues = z.infer<typeof menuItemSchema>;
+
+const wineSchema = z.object({
+  category: z.string().min(1, "Category is required"),
+  name: z.string().min(1, "Name is required"),
+  description: z.string().nullable().optional(),
+  price: z.string().nullable().optional(),
+  sortOrder: z.coerce.number().int().default(0),
+  featured: z.boolean().default(false),
+});
+
+type WineFormValues = z.infer<typeof wineSchema>;
 
 const beverageSchema = z.object({
   category: z.string().min(1, "Category is required"),
@@ -390,7 +406,88 @@ export default function OutletDetailPage() {
   };
 
   // Promotions state
-  const promotionsQueryKey = getListPromotionsQueryKey(id);
+    // Wines state
+  const winesQueryKey = getListWinesQueryKey(id);
+  const { data: wines, isLoading: isWinesLoading } = useListWines(id, {
+    query: {
+      enabled: !!id && !isNaN(id),
+      queryKey: winesQueryKey
+    }
+  });
+
+  const [isCreateWineOpen, setIsCreateWineOpen] = useState(false);
+  const [editingWine, setEditingWine] = useState<any>(null);
+  const [deletingWine, setDeletingWine] = useState<any>(null);
+
+  const createWineMutation = useCreateWine({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: winesQueryKey });
+        toast({ title: "Wine added successfully" });
+        setIsCreateWineOpen(false);
+      },
+      onError: () => {
+        toast({ title: "Failed to add wine", variant: "destructive" });
+      }
+    }
+  });
+
+  const updateWineMutation = useUpdateWine({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: winesQueryKey });
+        toast({ title: "Wine updated successfully" });
+        setEditingWine(null);
+      },
+      onError: () => {
+        toast({ title: "Failed to update wine", variant: "destructive" });
+      }
+    }
+  });
+
+  const deleteWineMutation = useDeleteWine({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: winesQueryKey });
+        toast({ title: "Wine deleted successfully" });
+        setDeletingWine(null);
+      },
+      onError: () => {
+        toast({ title: "Failed to delete wine", variant: "destructive" });
+      }
+    }
+  });
+
+  const wineForm = useForm<WineFormValues>({
+    resolver: zodResolver(wineSchema),
+    defaultValues: { category: "", name: "", description: "", price: "", sortOrder: 0, featured: false }
+  });
+
+  const onOpenChangeCreateWine = (open: boolean) => {
+    setIsCreateWineOpen(open);
+    if (open) {
+      wineForm.reset({ category: "", name: "", description: "", price: "", sortOrder: (wines?.length || 0) * 10, featured: false });
+    }
+  };
+
+  const onOpenChangeEditWine = (open: boolean, item?: any) => {
+    if (open && item) {
+      setEditingWine(item);
+      wineForm.reset({ category: item.category, name: item.name, description: item.description || "", price: item.price || "", sortOrder: item.sortOrder, featured: item.featured });
+    } else {
+      setEditingWine(null);
+    }
+  };
+
+  const onWineSubmit = (data: WineFormValues) => {
+    if (editingWine) {
+      updateWineMutation.mutate({ id: editingWine.id, data });
+    } else {
+      createWineMutation.mutate({ outletId: id, data });
+    }
+  };
+
+const promotionsQueryKey = getListPromotionsQueryKey(id);
   const { data: promotions, isLoading: isPromosLoading } = useListPromotions(id, undefined, {
     query: {
       enabled: !!id && !isNaN(id),
@@ -551,6 +648,7 @@ export default function OutletDetailPage() {
           <TabsTrigger value="details" className="px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">Outlet Details</TabsTrigger>
           <TabsTrigger value="menu" className="px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">Menu Items</TabsTrigger>
           <TabsTrigger value="beverages" className="px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">Beverages</TabsTrigger>
+          <TabsTrigger value="wines" className="px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">Wines</TabsTrigger>
           <TabsTrigger value="promotions" className="px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">Promotions</TabsTrigger>
         </TabsList>
 
@@ -1048,7 +1146,150 @@ export default function OutletDetailPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="promotions" className="space-y-6 outline-none">
+                <TabsContent value="wines" className="space-y-6 outline-none">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-semibold">Wines</h2>
+              <p className="text-sm text-muted-foreground">Manage the wine list for this outlet.</p>
+            </div>
+            
+            <Dialog open={isCreateWineOpen} onOpenChange={onOpenChangeCreateWine}>
+              <DialogTrigger asChild>
+                <Button data-testid="button-create-wine">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Wine
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Add Wine</DialogTitle>
+                  <DialogDescription>
+                    Add a new wine to the menu.
+                  </DialogDescription>
+                </DialogHeader>
+                <WineForm 
+                  form={wineForm} 
+                  onSubmit={onWineSubmit} 
+                  isPending={createWineMutation.isPending} 
+                  onCancel={() => setIsCreateWineOpen(false)} 
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          {isWinesLoading ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3].map(i => (
+                <Skeleton key={i} className="h-32 w-full rounded-xl" />
+              ))}
+            </div>
+          ) : !wines?.length ? (
+            <Card className="border-dashed border-2">
+              <CardContent className="flex flex-col items-center justify-center p-10 text-center">
+                <GlassWater className="h-10 w-10 text-muted-foreground opacity-20 mb-4" />
+                <h3 className="text-lg font-medium">No wines found</h3>
+                <p className="text-sm text-muted-foreground max-w-sm mt-1 mb-4">
+                  There are no wines added to this outlet yet. Add the first one to get started.
+                </p>
+                <Button variant="outline" onClick={() => onOpenChangeCreateWine(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Wine
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {wines.map((wine) => (
+                <Card key={wine.id} className="overflow-hidden flex flex-col">
+                  <CardHeader className="p-4 pb-2">
+                    <div className="flex justify-between items-start gap-2">
+                      <div>
+                        <Badge variant="secondary" className="mb-2 text-[10px] font-medium tracking-wide rounded-sm">{wine.category}</Badge>
+                        <CardTitle className="text-base line-clamp-1">{wine.name}</CardTitle>
+                      </div>
+                      <div className="font-semibold">{wine.price}</div>
+                    </div>
+                  </CardHeader>
+                  {wine.description && (
+                    <CardContent className="p-4 py-2">
+                      <p className="text-sm text-muted-foreground line-clamp-2">{wine.description}</p>
+                    </CardContent>
+                  )}
+                  <CardContent className="p-4 pt-2 mt-auto">
+                    <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground mt-2 border-t pt-3">
+                      <span className="inline-flex items-center gap-1">
+                        <GripVertical className="h-3 w-3" /> Order {wine.sortOrder}
+                      </span>
+                      <div className="flex gap-1">
+                        {wine.featured && (
+                          <Badge className="mr-2 text-[10px] h-6">Featured</Badge>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => onOpenChangeEditWine(true, wine)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          <span className="sr-only">Edit</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:text-destructive"
+                          onClick={() => setDeletingWine(wine)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span className="sr-only">Delete</span>
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          <Dialog open={!!editingWine} onOpenChange={(open) => onOpenChangeEditWine(open, editingWine)}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Edit Wine</DialogTitle>
+                <DialogDescription>
+                  Update this wine's details.
+                </DialogDescription>
+              </DialogHeader>
+              <WineForm 
+                form={wineForm} 
+                onSubmit={onWineSubmit} 
+                isPending={updateWineMutation.isPending} 
+                onCancel={() => setEditingWine(null)} 
+              />
+            </DialogContent>
+          </Dialog>
+
+          <AlertDialog open={!!deletingWine} onOpenChange={(open) => !open && setDeletingWine(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete wine?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently remove "{deletingWine?.name}" from this outlet.
+                  This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={() => deletingWine && deleteWineMutation.mutate({ id: deletingWine.id })}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </TabsContent>
+
+<TabsContent value="promotions" className="space-y-6 outline-none">
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-xl font-semibold">Promotions</h2>
@@ -1625,6 +1866,113 @@ function MenuForm({
           </Button>
           <Button type="submit" disabled={isPending} data-testid="button-save-menu">
             {isPending ? "Saving..." : "Save Item"}
+          </Button>
+        </DialogFooter>
+      </form>
+    </Form>
+  );
+}
+
+
+function WineForm({
+  form,
+  onSubmit,
+  isPending,
+  onCancel,
+}: {
+  form: any;
+  onSubmit: (data: WineFormValues) => void;
+  isPending: boolean;
+  onCancel: () => void;
+}) {
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g. Cabernet Sauvignon" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="category"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Category</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g. Red Wine" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="price"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Price</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g. $12/glass" {...field} value={field.value || ""} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="sortOrder"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Sort Order</FormLabel>
+                <FormControl>
+                  <Input type="number" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description (Optional)</FormLabel>
+              <FormControl>
+                <Textarea placeholder="Wine description, tasting notes..." {...field} value={field.value || ""} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="featured"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+              <div className="space-y-0.5">
+                <FormLabel>Featured Wine</FormLabel>
+              </div>
+              <FormControl>
+                <Switch checked={field.value} onCheckedChange={field.onChange} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>Cancel</Button>
+          <Button type="submit" disabled={isPending} data-testid="button-save-wine">
+            {isPending ? "Saving..." : "Save Wine"}
           </Button>
         </DialogFooter>
       </form>

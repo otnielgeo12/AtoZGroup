@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 
-export type AdminRole = "super_admin" | "admin" | "admin_fnb" | "admin_entertainment" | "admin_karaoke";
+export type AdminRole = "super_admin" | "admin" | "admin_fnb" | "admin_entertainment" | "admin_karaoke" | "general_manager" | "admin_atoz" | "admin_redhare" | "admin_oombee" | "admin_lakers" | "admin_shiraz" | "admin_district5" | "admin_bosa" | "admin_bodega" | "admin_infinity" | "digital_marketing";
 export type AdminGroup = "fnb" | "entertainment" | "karaoke" | null;
 
 interface User {
@@ -21,6 +21,8 @@ interface AuthContextType {
   isFnbAdmin: boolean;
   isEntertainmentAdmin: boolean;
   isKaraokeAdmin: boolean;
+  isOutletAdmin: boolean;
+  isDigitalMarketing: boolean;
   adminGroup: AdminGroup;
   getToken: () => Promise<string | null>;
 }
@@ -36,10 +38,10 @@ export function getAdminGroup(role: AdminRole | undefined | null): AdminGroup {
 }
 
 function cleanUrl(url?: string): string {
-  const raw = url || import.meta.env.VITE_CRM_API_URL || "https://apiclone.atozgroupsemarang.com";
+  const raw = url || "https://apiserver.atozgroupsemarang.com";
   const cleaned = raw.replace(/["'\r\n\t]+/g, "").trim().replace(/\/$/, "");
   if (!cleaned || cleaned === "/" || cleaned.includes("dashboard.atozgroupsemarang.com")) {
-    return "https://apiclone.atozgroupsemarang.com";
+    return "https://apiserver.atozgroupsemarang.com";
   }
   return cleaned;
 }
@@ -65,6 +67,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     setUser(null);
   };
+
+  useEffect(() => {
+    // 1. Auto logout on refresh
+    const handleBeforeUnload = () => {
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("auth_user");
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    // 2. Auto logout after 2 hours of inactivity
+    let inactivityTimer: NodeJS.Timeout;
+    const INACTIVITY_TIMEOUT = 2 * 60 * 60 * 1000; // 2 hours
+
+    const resetInactivityTimer = () => {
+      clearTimeout(inactivityTimer);
+      if (token) {
+        inactivityTimer = setTimeout(() => {
+          logout();
+          window.location.href = "/";
+        }, INACTIVITY_TIMEOUT);
+      }
+    };
+
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    const setupActivityListeners = () => {
+      events.forEach(event => document.addEventListener(event, resetInactivityTimer, true));
+    };
+
+    const cleanupActivityListeners = () => {
+      events.forEach(event => document.removeEventListener(event, resetInactivityTimer, true));
+      clearTimeout(inactivityTimer);
+    };
+
+    setupActivityListeners();
+    resetInactivityTimer();
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      cleanupActivityListeners();
+    };
+  }, [token]);
 
   useEffect(() => {
     async function fetchMe() {
@@ -149,6 +192,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isFnbAdmin: !!user && user.role === "admin_fnb",
     isEntertainmentAdmin: !!user && user.role === "admin_entertainment",
     isKaraokeAdmin: !!user && user.role === "admin_karaoke",
+    isOutletAdmin: !!user && user.role.startsWith("admin_") && !["admin_fnb", "admin_entertainment", "admin_karaoke"].includes(user.role),
+    isDigitalMarketing: !!user && user.role === "digital_marketing",
     adminGroup,
     getToken: async () => token,
   };

@@ -6,10 +6,12 @@ import { format } from "date-fns";
 import { useAuth } from "@/lib/auth-context";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { listCustomers, fetchTopSpendersAnalytics, fetchRevenueAnalytics, fetchTopItemsAnalytics, fetchUpcomingBirthdays, crmKeys } from "@/lib/crm-api";
-import { Medal, Gift } from "lucide-react";
+import { listCustomers, fetchTopSpendersAnalytics, fetchRevenueAnalytics, fetchTopItemsAnalytics, fetchUpcomingBirthdays, crmKeys, sendWhatsAppToCustomer } from "@/lib/crm-api";
+import { Medal, Gift, Loader2, MessageCircle } from "lucide-react";
+import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip, LineChart, Line } from "recharts";
+import { WhatsAppModal } from "@/pages/crm/components/WhatsAppModal";
 
 export default function HomePage() {
   const { isKaraokeAdmin, getToken } = useAuth();
@@ -48,12 +50,23 @@ export default function HomePage() {
   const [spendersOutlet, setSpendersOutlet] = useState("all");
   const [itemsOutlet, setItemsOutlet] = useState("all");
   const [itemsSort, setItemsSort] = useState("top");
+  const [itemsTimeframe, setItemsTimeframe] = useState("prev_month");
+  const [itemsCategory, setItemsCategory] = useState("all");
 
   const prevMonthName = (() => {
     const today = new Date();
     const start = new Date(today.getFullYear(), today.getMonth() - 1, 1); 
     return start.toLocaleString('en-US', { month: 'long' });
   })();
+
+  const currentMonthName = new Date().toLocaleString('en-US', { month: 'long' });
+
+  const timeframeLabel: Record<string, string> = {
+    weekly: "This Week",
+    monthly: currentMonthName,
+    prev_month: prevMonthName,
+    yearly: String(new Date().getFullYear()),
+  };
 
   const { data: topSpendersData, isLoading: isInsightsLoading } = useQuery({
     queryKey: ["analytics-top-spenders", spendersOutlet],
@@ -62,8 +75,8 @@ export default function HomePage() {
   });
 
   const { data: topItemsData, isLoading: isItemsLoading } = useQuery({
-    queryKey: ["analytics-top-items", itemsOutlet, itemsSort],
-    queryFn: () => fetchTopItemsAnalytics(itemsOutlet, getToken, itemsSort),
+    queryKey: ["analytics-top-items", itemsOutlet, itemsSort, itemsTimeframe, itemsCategory],
+    queryFn: () => fetchTopItemsAnalytics(itemsOutlet, getToken, itemsSort, itemsTimeframe, itemsCategory),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -73,6 +86,34 @@ export default function HomePage() {
     queryFn: () => fetchUpcomingBirthdays(birthdaysOutlet, getToken),
     staleTime: 5 * 60 * 1000,
   });
+
+  const [isWaModalOpen, setIsWaModalOpen] = useState(false);
+  const [selectedWaCustomer, setSelectedWaCustomer] = useState<any[]>([]);
+  const [selectedWaBrand, setSelectedWaBrand] = useState<any>(undefined);
+
+  const handleSendWa = (item: any) => {
+    const brandMap: Record<string, string> = {
+      'BS': 'Bosa',
+      'AZ': 'AtoZ',
+      'LK': 'Lakers',
+      'BD': 'Bodega',
+      'OB': 'Oombee',
+      'RH': 'Redhare',
+      'D5': 'District5',
+    };
+    
+    const brandKey = brandMap[item.outlet || 'BS'] || 'Bosa';
+    
+    setSelectedWaCustomer([{
+      id: item.code || item.phone_number,
+      code: item.code,
+      fullName: item.name,
+      phone: item.phone_number,
+      email: item.email,
+    }]);
+    setSelectedWaBrand(brandKey);
+    setIsWaModalOpen(true);
+  };
 
   const topSpenders = topSpendersData || [];
   const topItems = topItemsData || [];
@@ -265,10 +306,12 @@ export default function HomePage() {
         <div className="home-quick-overview">
           <div className="home-quick-overview-header mb-4">
             <div>
-              <h2 className="home-section-title">Items Sales ({prevMonthName})</h2>
-              <p className="text-sm text-muted-foreground mt-1">{itemsSort === "top" ? "Top" : "Bottom"} 5 {itemsSort === "top" ? "best" : "least"} selling items</p>
+              <h2 className="home-section-title">Items Sales — {timeframeLabel[itemsTimeframe] || prevMonthName}</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                {itemsSort === "top" ? "Top" : "Bottom"} 10 {itemsSort === "top" ? "best" : "least"} selling {itemsCategory === "food" ? "food" : itemsCategory === "bev" ? "beverage" : "items"}
+              </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Select value={itemsOutlet} onValueChange={setItemsOutlet}>
                 <SelectTrigger className="w-[120px] h-8 text-xs bg-white">
                   <SelectValue placeholder="Outlet" />
@@ -279,43 +322,66 @@ export default function HomePage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={itemsSort} onValueChange={setItemsSort}>
+              <Select value={itemsCategory} onValueChange={setItemsCategory}>
                 <SelectTrigger className="w-[110px] h-8 text-xs bg-white">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="food">Food</SelectItem>
+                  <SelectItem value="bev">Beverage</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={itemsTimeframe} onValueChange={setItemsTimeframe}>
+                <SelectTrigger className="w-[120px] h-8 text-xs bg-white">
+                  <SelectValue placeholder="Period" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="weekly">This Week</SelectItem>
+                  <SelectItem value="monthly">This Month</SelectItem>
+                  <SelectItem value="prev_month">Last Month</SelectItem>
+                  <SelectItem value="yearly">This Year</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={itemsSort} onValueChange={setItemsSort}>
+                <SelectTrigger className="w-[115px] h-8 text-xs bg-white">
                   <SelectValue placeholder="Sort" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="top">Top 5</SelectItem>
-                  <SelectItem value="bottom">Bottom 5</SelectItem>
+                  <SelectItem value="top">Top 10</SelectItem>
+                  <SelectItem value="bottom">Bottom 10</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          <div className="home-table-wrapper border rounded-md">
+          <div className="home-table-wrapper border rounded-md h-[280px] overflow-y-auto relative">
             {isItemsLoading ? (
               <div className="p-4 space-y-3">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-10 w-full rounded-md" />
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <Skeleton key={i} className="h-8 w-full rounded-md" />
                 ))}
               </div>
             ) : !topItems || topItems.length === 0 ? (
-              <div className="p-6 flex flex-col items-center justify-center text-muted-foreground text-sm">
+              <div className="p-6 flex flex-col items-center justify-center text-muted-foreground text-sm h-[300px]">
                 <UtensilsCrossed className="w-8 h-8 mb-2 opacity-20" />
-                <p>No item sales found.</p>
+                <p>No item sales found for this period.</p>
               </div>
             ) : (
-              <table className="w-full text-sm text-left">
-                <thead className="bg-muted/50 text-muted-foreground border-b">
+              <table className="w-full text-sm text-left relative">
+                <thead className="bg-muted/50 text-muted-foreground border-b sticky top-0 z-10 backdrop-blur-sm">
                   <tr>
-                    <th className="px-4 py-2 font-medium">Item Name</th>
-                    <th className="px-4 py-2 font-medium text-right">Sold</th>
+                    <th className="px-4 py-2 font-medium w-10 text-center bg-muted/90">#</th>
+                    <th className="px-4 py-2 font-medium bg-muted/90">Item Name</th>
+                    <th className="px-4 py-2 font-medium text-right bg-muted/90">Sold</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {topItems.map((item, i) => (
+                  {topItems.map((item: any, i: number) => (
                     <tr key={i} className="hover:bg-muted/30">
+                      <td className="px-4 py-2 text-center text-muted-foreground font-medium">{i + 1}</td>
                       <td className="px-4 py-2.5 font-medium">{item.nama_barang}</td>
-                      <td className="px-4 py-2.5 text-right font-semibold text-emerald-600">{item.total_sold}</td>
+                      <td className="px-4 py-2.5 text-right font-semibold text-emerald-600">{Number(item.total_sold).toLocaleString('id-ID')}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -377,6 +443,7 @@ export default function HomePage() {
                   <th className="home-th px-4 py-2 font-medium">Email</th>
                   <th className="home-th px-4 py-2 font-medium">Birthday</th>
                   <th className="home-th px-4 py-2 font-medium">Outlet</th>
+                  <th className="home-th px-4 py-2 font-medium !text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -400,6 +467,17 @@ export default function HomePage() {
                     </td>
                     <td className="home-td px-4 py-2.5 text-muted-foreground">
                       {item.outlet || "—"}
+                    </td>
+                    <td className="home-td px-4 py-2.5">
+                      <div className="flex w-full justify-center">
+                        <button 
+                          onClick={() => handleSendWa(item)}
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          Send Whatsapp
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )})}
@@ -496,6 +574,14 @@ export default function HomePage() {
           )}
         </div>
       </div>
+      
+      <WhatsAppModal 
+        open={isWaModalOpen} 
+        onOpenChange={setIsWaModalOpen}
+        selectedCustomers={selectedWaCustomer}
+        onClearSelection={() => setSelectedWaCustomer([])}
+        forceBrand={selectedWaBrand}
+      />
     </div>
   );
 }

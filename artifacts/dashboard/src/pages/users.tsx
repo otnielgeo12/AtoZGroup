@@ -35,7 +35,7 @@ interface AdminUser {
   id: number;
   username: string;
   email: string | null;
-  role: "super_admin" | "admin" | "admin_fnb" | "admin_entertainment" | "admin_karaoke";
+  role: "super_admin" | "admin" | "admin_fnb" | "admin_entertainment" | "admin_karaoke" | "general_manager" | "admin_atoz" | "admin_redhare" | "admin_oombee" | "admin_lakers" | "admin_shiraz" | "admin_district5" | "admin_bosa" | "admin_bodega" | "admin_infinity" | "digital_marketing";
   createdAt: string;
   updatedAt: string;
 }
@@ -55,12 +55,12 @@ export default function UserManagementPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"super_admin" | "admin" | "admin_fnb" | "admin_entertainment" | "admin_karaoke">("admin_fnb");
+  const [role, setRole] = useState<"super_admin" | "admin" | "admin_fnb" | "admin_entertainment" | "admin_karaoke" | "general_manager" | "admin_atoz" | "admin_redhare" | "admin_oombee" | "admin_lakers" | "admin_shiraz" | "admin_district5" | "admin_bosa" | "admin_bodega" | "admin_infinity" | "digital_marketing">("admin_fnb");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const rawApiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_CRM_API_URL || "https://apiclone.atozgroupsemarang.com";
+  const rawApiUrl = import.meta.env.VITE_API_URL || "https://apiserver.atozgroupsemarang.com";
   const cleanedApiUrl = rawApiUrl.replace(/["'\r\n\t]+/g, "").trim().replace(/\/$/, "");
-  const apiUrl = (!cleanedApiUrl || cleanedApiUrl === "/" || cleanedApiUrl.includes("dashboard.atozgroupsemarang.com")) ? "https://apiclone.atozgroupsemarang.com" : cleanedApiUrl;
+  const apiUrl = (!cleanedApiUrl || cleanedApiUrl === "/" || cleanedApiUrl.includes("dashboard.atozgroupsemarang.com")) ? "https://apiserver.atozgroupsemarang.com" : cleanedApiUrl;
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -261,7 +261,18 @@ export default function UserManagementPage() {
                     <SelectItem value="admin_fnb">F&amp;B Admin</SelectItem>
                     <SelectItem value="admin_entertainment">Entertainment Admin</SelectItem>
                     <SelectItem value="admin_karaoke">Karaoke Admin</SelectItem>
+                    <SelectItem value="general_manager">General Manager</SelectItem>
                     <SelectItem value="super_admin">Super Admin</SelectItem>
+                    <SelectItem value="admin_atoz">AtoZ Admin</SelectItem>
+                    <SelectItem value="admin_redhare">Redhare Admin</SelectItem>
+                    <SelectItem value="admin_oombee">Oombee Admin</SelectItem>
+                    <SelectItem value="admin_lakers">Lakers Admin</SelectItem>
+                    <SelectItem value="admin_shiraz">Shiraz Admin</SelectItem>
+                    <SelectItem value="admin_district5">District 5 Admin</SelectItem>
+                    <SelectItem value="admin_bosa">Bosa Admin</SelectItem>
+                    <SelectItem value="admin_bodega">Bodega Admin</SelectItem>
+                    <SelectItem value="admin_infinity">Infinity Admin</SelectItem>
+                    <SelectItem value="digital_marketing">Digital Marketing</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -324,24 +335,36 @@ export default function UserManagementPage() {
                           <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold ${
                             admin.role === "super_admin" 
                               ? "bg-amber-500/10 text-amber-500 border border-amber-500/25"
-                              : admin.role === "admin_fnb"
-                                ? "bg-orange-500/10 text-orange-500 border border-orange-500/25"
-                                : admin.role === "admin_entertainment"
-                                  ? "bg-purple-500/10 text-purple-500 border border-purple-500/25"
-                                  : admin.role === "admin_karaoke"
-                                    ? "bg-rose-500/10 text-rose-500 border border-rose-500/25"
-                                    : "bg-blue-500/10 text-blue-500 border border-blue-500/25"
+                              : admin.role === "general_manager"
+                                ? "bg-indigo-500/10 text-indigo-500 border border-indigo-500/25"
+                                : admin.role === "admin_fnb"
+                                  ? "bg-orange-500/10 text-orange-500 border border-orange-500/25"
+                                  : admin.role === "admin_entertainment"
+                                    ? "bg-purple-500/10 text-purple-500 border border-purple-500/25"
+                                    : admin.role === "admin_karaoke"
+                                      ? "bg-rose-500/10 text-rose-500 border border-rose-500/25"
+                                      : admin.role === "digital_marketing"
+                                        ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/25"
+                                        : admin.role.startsWith("admin_")
+                                          ? "bg-cyan-500/10 text-cyan-500 border border-cyan-500/25"
+                                          : "bg-blue-500/10 text-blue-500 border border-blue-500/25"
                           }`}>
                             <Shield className="w-3 h-3" />
                             {admin.role === "super_admin" 
                               ? "Super Admin" 
-                              : admin.role === "admin_fnb"
-                                ? "F&B Admin"
-                                : admin.role === "admin_entertainment"
-                                  ? "Entertainment Admin"
-                                  : admin.role === "admin_karaoke"
-                                    ? "Karaoke Admin"
-                                    : "Regular Admin"}
+                              : admin.role === "general_manager"
+                                ? "General Manager"
+                                : admin.role === "admin_fnb"
+                                  ? "F&B Admin"
+                                  : admin.role === "admin_entertainment"
+                                    ? "Entertainment Admin"
+                                    : admin.role === "admin_karaoke"
+                                      ? "Karaoke Admin"
+                                      : admin.role === "digital_marketing"
+                                        ? "Digital Marketing"
+                                        : admin.role.startsWith("admin_")
+                                          ? admin.role.replace("admin_", "").charAt(0).toUpperCase() + admin.role.slice(7) + " Admin"
+                                          : "Regular Admin"}
                           </span>
                         </TableCell>
                         <TableCell className="hidden md:table-cell text-muted-foreground">
@@ -440,7 +463,18 @@ export default function UserManagementPage() {
                   <SelectItem value="admin_fnb">F&amp;B Admin</SelectItem>
                   <SelectItem value="admin_entertainment">Entertainment Admin</SelectItem>
                   <SelectItem value="admin_karaoke">Karaoke Admin</SelectItem>
+                  <SelectItem value="general_manager">General Manager</SelectItem>
                   <SelectItem value="super_admin">Super Admin</SelectItem>
+                  <SelectItem value="admin_atoz">AtoZ Admin</SelectItem>
+                  <SelectItem value="admin_redhare">Redhare Admin</SelectItem>
+                  <SelectItem value="admin_oombee">Oombee Admin</SelectItem>
+                  <SelectItem value="admin_lakers">Lakers Admin</SelectItem>
+                  <SelectItem value="admin_shiraz">Shiraz Admin</SelectItem>
+                  <SelectItem value="admin_district5">District 5 Admin</SelectItem>
+                  <SelectItem value="admin_bosa">Bosa Admin</SelectItem>
+                  <SelectItem value="admin_bodega">Bodega Admin</SelectItem>
+                  <SelectItem value="admin_infinity">Infinity Admin</SelectItem>
+                  <SelectItem value="digital_marketing">Digital Marketing</SelectItem>
                 </SelectContent>
               </Select>
               {selectedUser?.id === currentUser?.id && (

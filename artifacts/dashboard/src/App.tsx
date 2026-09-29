@@ -16,13 +16,18 @@ import GalleryPage from "./pages/gallery";
 import SiteInfoPage from "./pages/site-info";
 import CrmPage from "./pages/crm/index";
 import CrmDetailPage from "./pages/crm/detail";
+import WhatsAppReportsPage from "./pages/crm/whatsapp-reports";
 import UserManagementPage from "./pages/users";
+import D5AccountsPage from "./pages/d5-accounts";
 import LadiesPage from "./pages/ladies/index";
 import LadiesOutletPage from "./pages/ladies/outlet";
 import LadiesInRoomPage from "./pages/ladies/in-room";
 import AddLadyPage from "./pages/ladies/add";
+import SosmedPlanPage from "./pages/sosmed-plan/index";
+import SettingsPage from "./pages/settings";
 import { Layout } from "./components/layout";
 import { RequireAuth, RequireSuperAdmin } from "./components/auth-helpers";
+import { ThemeProvider } from "./components/theme-provider";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -109,8 +114,22 @@ function AppRouter() {
 
       <Route path="/crm">
         <RequireAuth>
+          <Redirect to="/crm/customers" />
+        </RequireAuth>
+      </Route>
+
+      <Route path="/crm/customers">
+        <RequireAuth>
           <Layout>
             <CrmPage />
+          </Layout>
+        </RequireAuth>
+      </Route>
+
+      <Route path="/crm/whatsapp-reports">
+        <RequireAuth>
+          <Layout>
+            <WhatsAppReportsPage />
           </Layout>
         </RequireAuth>
       </Route>
@@ -173,6 +192,32 @@ function AppRouter() {
         </RequireAuth>
       </Route>
 
+      <Route path="/d5-accounts">
+        <RequireAuth>
+          <RequireSuperAdmin>
+            <Layout>
+              <D5AccountsPage />
+            </Layout>
+          </RequireSuperAdmin>
+        </RequireAuth>
+      </Route>
+
+      <Route path="/sosmed-plan">
+        <RequireAuth>
+          <Layout>
+            <SosmedPlanPage />
+          </Layout>
+        </RequireAuth>
+      </Route>
+
+      <Route path="/settings">
+        <RequireAuth>
+          <Layout>
+            <SettingsPage />
+          </Layout>
+        </RequireAuth>
+      </Route>
+
       <Route>
         <NotFound />
       </Route>
@@ -184,17 +229,19 @@ function App() {
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
   
   return (
-    <AuthProvider>
-      <QueryClientProvider client={queryClient}>
-        <AuthQueryClientCacheInvalidator />
-        <TooltipProvider>
-          <WouterRouter base={basePath}>
-            <AppRouter />
-          </WouterRouter>
-          <Toaster />
-        </TooltipProvider>
-      </QueryClientProvider>
-    </AuthProvider>
+    <ThemeProvider defaultTheme="system" storageKey="atoz-ui-theme">
+      <AuthProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthQueryClientCacheInvalidator />
+          <TooltipProvider>
+            <WouterRouter base={basePath}>
+              <AppRouter />
+            </WouterRouter>
+            <Toaster />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

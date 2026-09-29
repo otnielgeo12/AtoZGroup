@@ -12,48 +12,181 @@ import {
   Shield,
   UtensilsCrossed,
   Music2,
-  Sparkles
+  Sparkles,
+  ChevronDown,
+  MessageSquareText,
+  Building,
+  Calendar
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useState, useEffect } from "react";
 
-const navItems = [
-  { href: "/home", label: "Overview", icon: LayoutDashboard },
-  { href: "/crm", label: "CRM", icon: Users },
-  { href: "/ladies", label: "Ladies", icon: Sparkles },
-  { href: "/banners", label: "Banners", icon: ImageIcon },
-  { href: "/outlets", label: "Outlets", icon: Store },
-  { href: "/gallery", label: "Gallery", icon: Images },
-  { href: "/site-info", label: "Site Info", icon: Settings },
-  { href: "/users", label: "Admin Accounts", icon: Shield, superAdminOnly: true },
-];
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  superAdminOnly?: boolean;
+  children?: { href: string; label: string; icon: React.ComponentType<{ className?: string }> }[];
+}
 
+const navItems: NavItem[] = [
+  { href: "/home", label: "Overview", icon: LayoutDashboard },
+  { 
+    href: "/crm", 
+    label: "CRM", 
+    icon: Users,
+    children: [
+      { href: "/crm/customers", label: "Customer Data", icon: Users },
+      { href: "/crm/whatsapp-reports", label: "WhatsApp Reports", icon: MessageSquareText },
+    ],
+  },
+  { href: "/sosmed-plan", label: "Sosmed Plan", icon: Calendar },
+  { href: "/ladies", label: "Ladies", icon: Sparkles },
+  {
+    href: "/company-profile",
+    label: "Company Profile",
+    icon: Building,
+    children: [
+      { href: "/banners", label: "Banners", icon: ImageIcon },
+      { href: "/outlets", label: "Outlets", icon: Store },
+      { href: "/gallery", label: "Gallery", icon: Images },
+      { href: "/site-info", label: "Site Info", icon: Settings },
+    ],
+  },
+  {
+    href: "/admin-accounts-group",
+    label: "Admin Accounts",
+    icon: Shield,
+    superAdminOnly: true,
+    children: [
+      { href: "/users", label: "Admin Accounts", icon: Shield },
+      { href: "/d5-accounts", label: "Admin D5 Account", icon: Shield },
+    ],
+  },
+  { href: "/settings", label: "Settings", icon: Settings },
+];
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
-  const { user, logout, isFnbAdmin, isEntertainmentAdmin, isKaraokeAdmin } = useAuth();
+  const { user, logout, isFnbAdmin, isEntertainmentAdmin, isKaraokeAdmin, isOutletAdmin, isDigitalMarketing } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+  
+  // Track open state for each dropdown by label
+  const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>(() => {
+    const initialState: Record<string, boolean> = {};
+    navItems.forEach(item => {
+      if (item.children) {
+        initialState[item.label] = item.children.some(child => location.startsWith(child.href));
+      }
+    });
+    return initialState;
+  });
 
   useEffect(() => {
     if (isKaraokeAdmin && !location.startsWith("/ladies")) {
       setLocation("/ladies");
+    } else if (isOutletAdmin && (location === "/" || location === "/home")) {
+      setLocation("/crm/customers");
+    } else if (isDigitalMarketing && location !== "/home" && !location.startsWith("/sosmed-plan")) {
+      setLocation("/home");
     }
-  }, [isKaraokeAdmin, location, setLocation]);
+  }, [isKaraokeAdmin, isOutletAdmin, isDigitalMarketing, location, setLocation]);
+
+  // Auto-open accordion when navigating to a sub-route
+  useEffect(() => {
+    navItems.forEach(item => {
+      if (item.children && item.children.some(child => location.startsWith(child.href))) {
+        setOpenDropdowns(prev => ({ ...prev, [item.label]: true }));
+      }
+    });
+  }, [location]);
+
+  const toggleDropdown = (label: string, isOpen: boolean) => {
+    setOpenDropdowns(prev => ({ ...prev, [label]: isOpen }));
+  };
 
   const NavLinks = () => (
     <nav className="space-y-1">
       {navItems
         .filter((item) => {
+          if (user?.role === "digital_marketing") {
+            return item.href === "/home" || item.href === "/sosmed-plan" || item.href === "/settings";
+          }
+          if (isOutletAdmin) {
+            return item.href === "/crm" || item.href === "/company-profile" || item.href === "/settings";
+          }
           if (user?.role === "admin_karaoke") {
-            return item.href === "/ladies";
+            return item.href === "/ladies" || item.href === "/settings";
+          }
+          if (item.href === "/ladies" && (user?.role === "admin_fnb" || user?.role === "admin_entertainment")) {
+            return false;
+          }
+          if (item.href === "/sosmed-plan" && user?.role !== "super_admin") {
+            return false;
           }
           return !item.superAdminOnly || user?.role === "super_admin";
         })
         .map((item) => {
           const isActive = location.startsWith(item.href);
           const Icon = item.icon;
+
+          // Render collapsible accordion for items with children
+          if (item.children) {
+            const isOpen = openDropdowns[item.label] || false;
+            return (
+              <Collapsible
+                key={item.href}
+                open={isOpen}
+                onOpenChange={(open) => toggleDropdown(item.label, open)}
+              >
+                <CollapsibleTrigger asChild>
+                  <button
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors w-full ${
+                      item.children.some((child) => location.startsWith(child.href))
+                        ? "bg-primary/10 text-primary" 
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                    data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
+                  >
+                    <Icon className="w-5 h-5" />
+                    {item.label}
+                    <ChevronDown 
+                      className={`w-4 h-4 ml-auto transition-transform duration-200 ${
+                        isOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-top-1 data-[state=open]:slide-in-from-top-1 duration-200">
+                  <div className="ml-4 mt-1 space-y-0.5 border-l-2 border-border pl-3">
+                    {item.children.map((child) => {
+                      const isChildActive = location === child.href || location.startsWith(child.href + "/");
+                      const ChildIcon = child.icon;
+                      return (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                            isChildActive
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                          data-testid={`nav-${child.label.toLowerCase().replace(/\s+/g, "-")}`}
+                        >
+                          <ChildIcon className="w-4 h-4" />
+                          {child.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          }
           
           return (
             <Link 
@@ -115,6 +248,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       <span className="inline-flex items-center gap-1 text-purple-500"><Music2 className="w-3 h-3" /> Entertainment Group</span>
                     ) : isKaraokeAdmin ? (
                       <span className="inline-flex items-center gap-1 text-rose-500"><Sparkles className="w-3 h-3" /> Karaoke Group</span>
+                    ) : isDigitalMarketing ? (
+                      <span className="inline-flex items-center gap-1 text-emerald-500"><Calendar className="w-3 h-3" /> Digital Marketing</span>
+                    ) : isOutletAdmin ? (
+                      <span className="inline-flex items-center gap-1 text-cyan-500"><Building className="w-3 h-3" /> Outlet Admin</span>
                     ) : (
                       user?.email || "System Admin"
                     )}
@@ -158,6 +295,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <span className="inline-flex items-center gap-1 text-purple-400"><Music2 className="w-3 h-3" /> Entertainment Group</span>
                 ) : isKaraokeAdmin ? (
                   <span className="inline-flex items-center gap-1 text-rose-400"><Sparkles className="w-3 h-3" /> Karaoke Group</span>
+                ) : isDigitalMarketing ? (
+                  <span className="inline-flex items-center gap-1 text-emerald-400"><Calendar className="w-3 h-3" /> Digital Marketing</span>
+                ) : isOutletAdmin ? (
+                  <span className="inline-flex items-center gap-1 text-cyan-400"><Building className="w-3 h-3" /> Outlet Admin</span>
                 ) : (
                   user?.email || "System Admin"
                 )}

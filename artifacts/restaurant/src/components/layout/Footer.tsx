@@ -85,7 +85,7 @@ export function Footer() {
 
         <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-xs text-muted-foreground uppercase tracking-widest">
-            &copy; {new Date().getFullYear()} {siteInfo?.brandName || "Avenue Hospitality Group"}. All rights reserved.
+            &copy; 2026 Managed by PT Sarana Kreasi Muda. All rights reserved.
           </p>
           <div className="flex gap-6">
             <Link href="/privacy" className="text-xs text-muted-foreground hover:text-primary uppercase tracking-widest">Privacy</Link>

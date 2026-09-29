@@ -1,7 +1,8 @@
 // Ladies API Client for Dashboard
 // Connects to the api-server-ladies backend
 
-const LADIES_API_URL = import.meta.env.VITE_LADIES_API_URL || "https://apid5.atozgroupsemarang.com";
+const rawLadiesUrl = import.meta.env.VITE_LADIES_API_URL || "https://apid5.atozgroupsemarang.com";
+const LADIES_API_URL = rawLadiesUrl.replace(/["'\r\n\t]+/g, "").trim().replace(/\/$/, "");
 
 type GetTokenFn = () => Promise<string | null>;
 
@@ -79,12 +80,24 @@ export interface RoomBooking {
   status: "waiting" | "active" | "completed" | "cancelled";
   started_at: string | null;
   ends_at: string | null;
+  room_name: string | null;
+  approved_by: string | null;
   created_at: string;
   lady_name: string;
   lady_category: string;
   lady_age: number;
   lady_status: string;
   lady_photo: string | null;
+}
+
+export interface LadyHistory {
+  id: number;
+  booking_date: string;
+  room_name: string | null;
+  approved_by: string | null;
+  started_at: string;
+  ends_at: string;
+  exact_duration_seconds: number;
 }
 
 export interface CreateLadyData {
@@ -211,9 +224,15 @@ export async function listRoomBookings(
 
 export async function startRoomBooking(
   id: number,
-  getToken: GetTokenFn
+  getToken: GetTokenFn,
+  roomName?: string,
+  adminName?: string
 ): Promise<void> {
-  return apiFetch(`/api/room-bookings/${id}/start`, getToken, { method: "POST" });
+  const options: RequestInit = { method: "POST" };
+  if (roomName || adminName) {
+    options.body = JSON.stringify({ room: roomName, adminName });
+  }
+  return apiFetch(`/api/room-bookings/${id}/start`, getToken, options);
 }
 
 export async function addOvertimeBooking(
@@ -234,6 +253,13 @@ export async function completeRoomBooking(
   return apiFetch(`/api/room-bookings/${id}/complete`, getToken, { method: "POST" });
 }
 
+export async function getLadyHistory(
+  id: number,
+  getToken: GetTokenFn
+): Promise<LadyHistory[]> {
+  return apiFetch(`/api/ladies/${id}/history`, getToken);
+}
+
 // ─── Query Keys ─────────────────────────────────────────────────────────────
 export const ladiesKeys = {
   all: () => ["ladies"] as const,
@@ -241,6 +267,7 @@ export const ladiesKeys = {
   list: (outlet: string, category?: string) => [...ladiesKeys.lists(), outlet, category] as const,
   details: () => [...ladiesKeys.all(), "detail"] as const,
   detail: (id: number) => [...ladiesKeys.details(), id] as const,
+  history: (id: number) => [...ladiesKeys.detail(id), "history"] as const,
   reports: () => [...ladiesKeys.all(), "report"] as const,
   report: (outlet: string, month: string, startDate?: string, endDate?: string) => [...ladiesKeys.reports(), outlet, month, startDate, endDate] as const,
   roomBookings: () => [...ladiesKeys.all(), "room-bookings"] as const,

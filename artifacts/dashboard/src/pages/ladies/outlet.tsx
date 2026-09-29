@@ -4,15 +4,15 @@ import { useAuth } from "@/lib/auth-context";
 import { useRoute, useLocation } from "wouter";
 import {
   Sparkles, Plus, ArrowLeft, Crown, Gem, User,
-  Loader2, Pencil, Trash2, Calendar, Download, Filter, X, Power,
+  Loader2, Pencil, Trash2, Calendar, Download, Filter, X, Power, History, Clock,
 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
 
 import {
-  listLadies, deleteLady, toggleLadyActive, getLadiesReport,
-  ladiesKeys, type Lady, type LadyReport,
+  listLadies, deleteLady, toggleLadyActive, getLadiesReport, getLadyHistory,
+  ladiesKeys, type Lady, type LadyReport, type LadyHistory,
 } from "@/lib/ladies-api";
 
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,9 @@ import { Input } from "@/components/ui/input";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -66,13 +69,12 @@ function downloadLadiesReportPdf(
   doc.setFont("helvetica", "normal");
   doc.text(`Period: ${dateLabel}  |  Generated: ${now}`, 14, 19);
 
-  const headers = ["No", "Name", "Age", "Category", "Status", "Total Hours", "Bookings"];
+  const headers = ["No", "Name", "Category", "Status", "Total Hours", "Bookings"];
   const body = ladies.map((l, idx) => {
     const r = reportMap.get(l.id);
     return [
       String(idx + 1),
       l.name,
-      String(l.age),
       l.category.toUpperCase(),
       l.status ? l.status.toUpperCase() : "READY",
       `${r?.total_hours || 0} hrs`,
@@ -95,11 +97,10 @@ function downloadLadiesReportPdf(
     columnStyles: {
       0: { cellWidth: 12, halign: "center" }, // No
       1: { cellWidth: 50 }, // Name
-      2: { cellWidth: 16, halign: "center" }, // Age
-      3: { cellWidth: 28, halign: "center" }, // Category
-      4: { cellWidth: 28, halign: "center" }, // Status
-      5: { cellWidth: 26, halign: "right" }, // Total Hours
-      6: { cellWidth: 22, halign: "right" }, // Bookings
+      2: { cellWidth: 28, halign: "center" }, // Category
+      3: { cellWidth: 28, halign: "center" }, // Status
+      4: { cellWidth: 26, halign: "right" }, // Total Hours
+      5: { cellWidth: 22, halign: "right" }, // Bookings
     },
   });
 
@@ -129,6 +130,86 @@ function downloadLadiesReportPdf(
   }, 150);
 }
 
+function LadyHistoryModal({ lady, onClose, getToken }: { lady: Lady | null, onClose: () => void, getToken: any }) {
+  const { data: history = [], isLoading } = useQuery({
+    queryKey: ["lady-history", lady?.id],
+    queryFn: () => getLadyHistory(lady!.id, getToken),
+    enabled: !!lady,
+  });
+
+  if (!lady) return null;
+
+  return (
+    <Dialog open={!!lady} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Booking History - {lady.name}</DialogTitle>
+          <DialogDescription>Details of past completed room sessions.</DialogDescription>
+        </DialogHeader>
+        
+        {isLoading ? (
+          <div className="flex items-center justify-center py-10">
+            <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+          </div>
+        ) : history.length === 0 ? (
+          <div className="text-center py-10 text-muted-foreground">
+            No completed sessions found for this companion.
+          </div>
+        ) : (
+          <div className="rounded-xl border border-border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead>Date & Time</TableHead>
+                  <TableHead>Room</TableHead>
+                  <TableHead>Approved By</TableHead>
+                  <TableHead className="text-right">Exact Duration</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {history.map((h) => {
+                  const duration = h.exact_duration_seconds || 0;
+                  const hours = Math.floor(duration / 3600);
+                  const minutes = Math.floor((duration % 3600) / 60);
+                  const seconds = duration % 60;
+                  
+                  return (
+                    <TableRow key={h.id}>
+                      <TableCell>
+                        <div className="font-medium">{format(new Date(h.booking_date), "dd MMM yyyy")}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {format(new Date(h.started_at), "HH:mm:ss")} - {format(new Date(h.ends_at), "HH:mm:ss")}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+                          {h.room_name || "N/A"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5 text-sm font-medium">
+                          <User className="w-3.5 h-3.5 text-muted-foreground" />
+                          {h.approved_by || "Admin"}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1.5 font-mono text-sm font-semibold">
+                          <Clock className="w-3.5 h-3.5 text-emerald-500" />
+                          {hours}h {minutes}m {seconds}s
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function LadiesOutletPage() {
   const [, params] = useRoute("/ladies/:outlet");
   const [, setLocation] = useLocation();
@@ -143,6 +224,7 @@ export default function LadiesOutletPage() {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [deleteTarget, setDeleteTarget] = useState<Lady | null>(null);
+  const [historyTarget, setHistoryTarget] = useState<Lady | null>(null);
 
   // Current month for report
   const currentMonth = useMemo(() => {
@@ -205,7 +287,8 @@ export default function LadiesOutletPage() {
     };
   }, [ladies]);
 
-  const LADIES_API_URL = import.meta.env.VITE_LADIES_API_URL || "https://apid5.atozgroupsemarang.com";
+  const rawLadiesUrl = import.meta.env.VITE_LADIES_API_URL || "https://apid5.atozgroupsemarang.com";
+  const LADIES_API_URL = rawLadiesUrl.replace(/["'\r\n\t]+/g, "").trim().replace(/\/$/, "");
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -349,7 +432,6 @@ export default function LadiesOutletPage() {
               <TableRow>
                 <TableHead className="w-16">Photo</TableHead>
                 <TableHead>Name</TableHead>
-                <TableHead>Age</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-center">
@@ -359,7 +441,7 @@ export default function LadiesOutletPage() {
                   </div>
                 </TableHead>
                 <TableHead className="text-center">Bookings</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-right pr-12">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -405,7 +487,6 @@ export default function LadiesOutletPage() {
                         )}
                       </TableCell>
                       <TableCell className="font-medium">{lady.name}</TableCell>
-                      <TableCell>{lady.age}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={`${catConf.bg} ${catConf.color} ${catConf.border} text-xs`}>
                           {catConf.label}
@@ -456,6 +537,15 @@ export default function LadiesOutletPage() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-500/10 ml-1"
+                            onClick={() => setHistoryTarget(lady)}
+                            title="View History"
+                          >
+                            <History className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             className="h-8 w-8 ml-1"
                             onClick={() => setLocation(`/ladies/${outlet}/edit/${lady.id}`)}
                             data-testid={`btn-edit-${lady.id}`}
@@ -481,6 +571,9 @@ export default function LadiesOutletPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* History Modal */}
+      <LadyHistoryModal lady={historyTarget} onClose={() => setHistoryTarget(null)} getToken={getToken} />
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>

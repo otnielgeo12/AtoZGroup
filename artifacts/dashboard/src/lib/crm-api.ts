@@ -285,6 +285,7 @@ function mapVsoftMember(m: VsoftMember): CustomerListItem {
     if (c === "OM" || c === "OMBE" || c === "OB") return "Ombe";
     if (c === "RH") return "RH";
     if (c === "D5") return "D5";
+    if (c === "SZ" || c === "SHIRAZ") return "Shiraz";
     return code.trim();
   };
 
@@ -432,6 +433,7 @@ export async function listOutlets(
     { id: "RH", name: "RH" },
     { id: "Bodega", name: "Bodega" },
     { id: "D5", name: "D5" },
+    { id: "Shiraz", name: "Shiraz" },
   ];
 }
 
@@ -601,6 +603,7 @@ export async function fetchCustomerInsights(
       if (code === "BOSA") code = "BS";
       if (code === "RH") code = "RH";
       if (code === "D5") code = "D5";
+      if (code === "Shiraz") code = "SZ";
       qs.set("outlet_code", code);
     }
     return await vsfRequest<VsoftResponse<VsoftInsight[]>>(`${base}/api/v1/customerInsights?${qs}`, {}, outId);
@@ -981,6 +984,7 @@ export async function fetchRevenueAnalytics(
     if (code === "BOSA") code = "BS";
     if (code === "RH") code = "RH";
     if (code === "D5") code = "D5";
+    if (code === "Shiraz") code = "SZ";
     qs.set("outlet", code);
   }
   const url = `${base}/api/analytics/revenue?${qs}`;
@@ -1003,6 +1007,7 @@ export async function fetchTopSpendersAnalytics(
     if (code === "BOSA") code = "BS";
     if (code === "RH") code = "RH";
     if (code === "D5") code = "D5";
+    if (code === "Shiraz") code = "SZ";
     qs.set("outlet", code);
   }
   const url = `${base}/api/analytics/top-spenders?${qs}`;
@@ -1019,6 +1024,8 @@ export async function fetchTopItemsAnalytics(
   outlet?: string,
   _getToken?: () => Promise<string | null>,
   sort?: string,
+  timeframe?: string,
+  category?: string,
 ): Promise<AnalyticsItem[]> {
   const base = getCrmBaseUrl();
   const qs = new URLSearchParams();
@@ -1031,10 +1038,17 @@ export async function fetchTopItemsAnalytics(
     if (code === "BOSA") code = "BS";
     if (code === "RH") code = "RH";
     if (code === "D5") code = "D5";
+    if (code === "Shiraz") code = "SZ";
     qs.set("outlet", code);
   }
   if (sort) {
     qs.set("sort", sort);
+  }
+  if (timeframe) {
+    qs.set("timeframe", timeframe);
+  }
+  if (category) {
+    qs.set("category", category);
   }
   const url = `${base}/api/analytics/top-items?${qs}`;
   const resp = await vsfRequest<VsoftResponse<AnalyticsItem[]>>(url);
@@ -1057,21 +1071,20 @@ export async function sendWhatsAppAtoZ(params: SendWhatsAppParams): Promise<Send
       imageMimeType = params.imageFile.type;
     }
 
-    const resp = await fetch(`${base}/api/wa/send`, {
+    const waApiUrl = (import.meta as any).env.VITE_WA_API_URL || "https://apiwa.atozgroupsemarang.com";
+
+    const json = await vsfRequest<any>(`${waApiUrl}/api/send-message`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        outlet:     "atoz",
+        brandId:    "atoz",
         recipients,
         message:    params.message,
-        imageBase64,
-        imageMimeType,
+        imageUrl:   imageBase64 ? `data:${imageMimeType};base64,${imageBase64}` : undefined,
       }),
     });
 
-    const json = await resp.json();
-
-    if (!resp.ok || !json.success) {
+    if (!json.success) {
       return { success: false, message: json.message || "Gagal mengirim pesan" };
     }
 
@@ -1103,7 +1116,7 @@ export async function sendWhatsAppBosa(params: SendWhatsAppParams): Promise<Send
       imageMimeType = params.imageFile.type;
     }
 
-    const resp = await fetch(`${base}/api/wa/send`, {
+    const json = await vsfRequest<any>(`${base}/api/wa/send`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1115,9 +1128,7 @@ export async function sendWhatsAppBosa(params: SendWhatsAppParams): Promise<Send
       }),
     });
 
-    const json = await resp.json();
-
-    if (!resp.ok || !json.success) {
+    if (!json.success) {
       return { success: false, message: json.message || "Gagal mengirim pesan" };
     }
 
@@ -1141,8 +1152,49 @@ export async function sendWhatsAppLakers(_params: SendWhatsAppParams): Promise<S
 export async function sendWhatsAppRedhare(_params: SendWhatsAppParams): Promise<SendWhatsAppResult> {
   return { success: false, message: "WhatsApp Redhare belum dikonfigurasi. Hubungi admin." };
 }
-export async function sendWhatsAppOombee(_params: SendWhatsAppParams): Promise<SendWhatsAppResult> {
-  return { success: false, message: "WhatsApp Ombe belum dikonfigurasi. Hubungi admin." };
+export async function sendWhatsAppOombee(params: SendWhatsAppParams): Promise<SendWhatsAppResult> {
+  const base = getCrmBaseUrl();
+  const recipients = params.recipients.map((r: any) => ({
+    name:  r.fullName || r.name || r.customer_name || "Pelanggan",
+    phone: r.phone_number || r.phone || "",
+  }));
+
+  try {
+    let imageBase64: string | undefined;
+    let imageMimeType: string | undefined;
+    if (params.imageFile) {
+      const b64 = await fileToBase64(params.imageFile);
+      imageBase64 = b64.split(",")[1];
+      imageMimeType = params.imageFile.type;
+    }
+
+    const waApiUrl = (import.meta as any).env.VITE_WA_API_URL || "https://apiwa.atozgroupsemarang.com";
+
+    const json = await vsfRequest<any>(`${waApiUrl}/api/send-message`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        brandId:    "ombe",
+        recipients,
+        message:    params.message,
+        imageUrl:   imageBase64 ? `data:${imageMimeType};base64,${imageBase64}` : undefined,
+      }),
+    });
+
+    if (!json.success) {
+      return { success: false, message: json.message || "Gagal mengirim pesan" };
+    }
+
+    const d = json.data || {};
+    return {
+      success:    true,
+      message:    json.message || `Terkirim ke ${d.sentCount} penerima`,
+      jobId:      undefined,
+    };
+  } catch (error: any) {
+    console.error("WA Ombe error:", error);
+    return { success: false, message: error?.message || "Kesalahan jaringan" };
+  }
 }
 export async function sendWhatsAppShiraz(_params: SendWhatsAppParams): Promise<SendWhatsAppResult> {
   return { success: false, message: "WhatsApp Shiraz belum dikonfigurasi. Hubungi admin." };
@@ -1205,5 +1257,43 @@ export async function fetchWhatsAppReports(
       data: [],
       summary: { totalMessages: 0, totalSent: 0, totalRead: 0, totalFailed: 0 }
     };
+  }
+}
+
+export async function sendWhatsAppToCustomer(outletCode: string, recipients: any[], message: string = "Happy Birthday!"): Promise<SendWhatsAppResult> {
+  const base = getCrmBaseUrl();
+  const outletMap: Record<string, string> = {
+    'BS': 'bosa',
+    'AZ': 'atoz',
+    'LK': 'lakers',
+    'BD': 'bodega',
+    'OB': 'ombe',
+    'RH': 'redhare',
+    'D5': 'district5',
+    'SZ': 'shiraz',
+  };
+  const outletName = outletMap[outletCode] || 'bosa';
+  
+  const formattedRecipients = recipients.map((r: any) => ({
+    name:  r.name || r.customer_name || "Pelanggan",
+    phone: r.phone_number || r.phone || "",
+  }));
+
+  try {
+    const json = await vsfRequest<any>(`${base}/api/wa/send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        outlet: outletName,
+        recipients: formattedRecipients,
+        message: message,
+      }),
+    });
+    if (!json.success) {
+      return { success: false, message: json.message || "Failed to send WA", data: null };
+    }
+    return { success: true, message: json.message || "Message sent successfully", data: json.data };
+  } catch (err: any) {
+    return { success: false, message: err.message || "Network error", data: null };
   }
 }

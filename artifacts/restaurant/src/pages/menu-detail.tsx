@@ -9,11 +9,13 @@ import {
   getListMenuItemsQueryKey,
   useListBeverages,
   getListBeveragesQueryKey,
+  useListWines,
+  getListWinesQueryKey
 } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fallbackOutlets, getImageUrl } from "@/lib/assets";
 
-type MenuTab = "food" | "beverages";
+type MenuTab = "food" | "beverages" | "wines";
 
 function categoryDescription(category: string): string {
   const map: Record<string, string> = {
@@ -41,6 +43,16 @@ function beverageCategoryDescription(category: string): string {
   return map[category] || "Thoughtfully crafted beverages.";
 }
 
+function wineCategoryDescription(category: string): string {
+  const map: Record<string, string> = {
+    "Red Wine": "Robust and full-bodied selections.",
+    "White Wine": "Crisp and refreshing choices.",
+    "Rosé": "Light and floral notes.",
+    "Sparkling": "For celebrations and toasts.",
+  };
+  return map[category] || "Thoughtfully curated wines.";
+}
+
 export function MenuDetail() {
   const params = useParams();
   const slug = params.slug;
@@ -61,7 +73,15 @@ export function MenuDetail() {
     query: { enabled: !!outlet?.id, queryKey: getListBeveragesQueryKey(outlet?.id || -1) },
   });
 
-  if (outletLoading) {
+    const { data: wines, isLoading: wineLoading } = useListWines(outlet?.id || -1, {
+    query: { enabled: !!outlet?.id, queryKey: getListWinesQueryKey(outlet?.id || -1) },
+  });
+
+  const wineCategories = wines
+    ? Array.from(new Set(wines.map((w) => w.category)))
+    : [];
+
+if (outletLoading) {
     return (
       <div className="min-h-screen bg-zinc-950 pt-24">
         <Skeleton className="h-[40vh] w-full bg-zinc-900" />
@@ -147,6 +167,8 @@ export function MenuDetail() {
               )}
             </div>
           </motion.div>
+
+
         </div>
       </section>
 
@@ -179,6 +201,20 @@ export function MenuDetail() {
             >
               <GlassWater size={13} />
               Beverages
+            </button>
+
+            <button
+              id="tab-wines"
+              onClick={() => setActiveTab("wines")}
+              data-testid="tab-wines"
+              className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-medium tracking-wider uppercase transition-all duration-200 ${
+                activeTab === "wines"
+                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                  : "text-white/60 hover:text-white border border-white/15 hover:border-white/30"
+              }`}
+            >
+              <GlassWater size={13} />
+              Wine
             </button>
           </div>
         </div>
@@ -330,6 +366,74 @@ export function MenuDetail() {
                   <GlassWater size={36} className="mx-auto text-white/20 mb-4" />
                   <p className="text-white/50 italic font-serif">
                     Beverage menu currently being updated. Please check back soon.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── WINES TAB ── */}
+          {activeTab === "wines" && (
+            <>
+              {wineLoading ? (
+                <div className="space-y-8">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-20 w-full bg-zinc-900" />
+                  ))}
+                </div>
+              ) : wines && wines.length > 0 ? (
+                <div className="space-y-20">
+                  {wineCategories.map((category) => (
+                    <div key={category}>
+                      <div className="mb-8">
+                        <h2 className="text-3xl md:text-4xl font-serif text-primary mb-2">
+                          {category}
+                        </h2>
+                        <p className="text-white/50 text-sm">
+                          {wineCategoryDescription(category)}
+                        </p>
+                        <div className="h-px bg-white/10 mt-6" />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+                        {wines
+                          .filter((w) => w.category === category)
+                          .map((wine: any) => (
+                            <div key={wine.id} className="flex items-start gap-4">
+                              <div className="w-10 h-10 rounded-full bg-zinc-900 border border-white/10 shrink-0 flex items-center justify-center mt-1">
+                                <GlassWater size={14} className="text-primary/60" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-baseline justify-between gap-3 mb-1">
+                                  <h3 className="text-lg font-medium text-white leading-tight">
+                                    {wine.name}
+                                  </h3>
+                                  <span className="text-lg font-serif text-white shrink-0">
+                                    {wine.price}
+                                  </span>
+                                </div>
+                                {wine.description && (
+                                  <p className="text-sm text-white/55 leading-relaxed">
+                                    {wine.description}
+                                  </p>
+                                )}
+                                {wine.featured && (
+                                  <span className="inline-block mt-2 text-[11px] tracking-[0.2em] uppercase text-primary border border-primary/40 px-2.5 py-0.5 rounded-full">
+                                    Sommelier's Pick
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-20 border border-white/10 rounded-sm">
+                  <GlassWater size={36} className="mx-auto text-white/20 mb-4" />
+                  <p className="text-white/50 italic font-serif">
+                    Wine menu currently being updated. Please check back soon.
                   </p>
                 </div>
               )}
