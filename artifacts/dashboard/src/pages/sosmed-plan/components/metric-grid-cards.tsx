@@ -59,10 +59,13 @@ export function MetricGridCards() {
                   </linearGradient>
                 </defs>
                 <XAxis 
-                  dataKey="month" 
+                  dataKey={(d) => d.date || d.month} 
                   axisLine={false} tickLine={false} 
                   tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} 
-                  tickFormatter={(v) => format(new Date(v), "MMM yy")}
+                  tickFormatter={(v) => {
+                    if (!v) return "";
+                    return format(new Date(v), "MMM yy");
+                  }}
                   interval="preserveStartEnd" 
                 />
                 <YAxis 
@@ -72,7 +75,10 @@ export function MetricGridCards() {
                 />
                 <Tooltip 
                   contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgb(0 0 0 / 0.15)', backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--foreground))' }} 
-                  labelFormatter={(v) => format(new Date(v), "MMMM yyyy")}
+                  labelFormatter={(v) => {
+                    if (!v) return "";
+                    return format(new Date(v), "MMMM yyyy");
+                  }}
                 />
                 <Area 
                   type="monotone" 
