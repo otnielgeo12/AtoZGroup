@@ -9,6 +9,11 @@ import { PlatformIcon } from "./platform-icon";
 interface TopContentData extends SosmedContent {
   impressions: number;
   engagementRate: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves: number;
+  reach: number;
 }
 
 export function TopContentCard() {
@@ -38,10 +43,15 @@ export function TopContentCard() {
               return {
                 ...content,
                 impressions: insight.impressions,
-                engagementRate: er
+                engagementRate: er,
+                likes: insight.likes,
+                comments: insight.comments_count,
+                shares: insight.shares,
+                saves: insight.saves,
+                reach: insight.reach
               };
             } catch (e) {
-              return { ...content, impressions: 0, engagementRate: 0 };
+              return { ...content, impressions: 0, engagementRate: 0, likes: 0, comments: 0, shares: 0, saves: 0, reach: 0 };
             }
           })
         );
@@ -56,15 +66,28 @@ export function TopContentCard() {
   }, [outlet]);
 
   const sortedData = [...data].sort((a, b) => {
-    if (sortBy === "impressions") return b.impressions - a.impressions;
-    return b.engagementRate - a.engagementRate;
+    switch (sortBy) {
+      case "engagementRate": return b.engagementRate - a.engagementRate;
+      case "likes": return b.likes - a.likes;
+      case "comments": return b.comments - a.comments;
+      case "shares": 
+      case "repost": return b.shares - a.shares;
+      case "saves": return b.saves - a.saves;
+      case "reach": return b.reach - a.reach;
+      case "impressions":
+      case "impresi":
+      default:
+        return b.impressions - a.impressions;
+    }
   });
 
-  // Group by platform
+  // Group by platform, limit to 5 per platform
   const groupedData: Record<string, TopContentData[]> = {};
   sortedData.forEach(item => {
     if (!groupedData[item.platform]) groupedData[item.platform] = [];
-    groupedData[item.platform].push(item);
+    if (groupedData[item.platform].length < 5) {
+      groupedData[item.platform].push(item);
+    }
   });
 
   return (
@@ -73,9 +96,9 @@ export function TopContentCard() {
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <Star className="w-5 h-5 text-muted-foreground" />
-            Top Content per Platform
+            Top 5 Content per Platform
           </h3>
-          <p className="text-sm text-muted-foreground mt-1">Patokan ranking: {sortBy === 'impressions' ? 'Tayangan' : 'Engagement Rate'}</p>
+          <p className="text-sm text-muted-foreground mt-1">Patokan ranking: Berdasarkan Pilihan</p>
         </div>
         
         <div className="flex flex-wrap items-end gap-3">
@@ -141,7 +164,7 @@ export function TopContentCard() {
             <tr>
               <th className="px-4 py-3 rounded-l-lg w-16 text-center">Rank</th>
               <th className="px-4 py-3">Konten</th>
-              <th className="px-4 py-3 text-right">Tayangan</th>
+              <th className="px-4 py-3 text-right">Nilai Metrik</th>
               <th className="px-4 py-3 text-right">Engagement Rate</th>
               <th className="px-4 py-3 rounded-r-lg text-right">Tanggal</th>
             </tr>
@@ -168,7 +191,7 @@ export function TopContentCard() {
               Object.entries(groupedData).map(([platform, items]) => (
                 <React.Fragment key={platform}>
                   {/* Platform Header */}
-                  <tr className={`${platform.toLowerCase() === 'ig' ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400' : 'bg-slate-50 text-slate-600 dark:bg-slate-900/50 dark:text-slate-400'} border-b border-border/50`}>
+                  <tr className={`${platform.toLowerCase() === 'ig' || platform.toLowerCase() === 'instagram' ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400' : 'bg-slate-50 text-slate-600 dark:bg-slate-900/50 dark:text-slate-400'} border-b border-border/50`}>
                     <td colSpan={5} className="px-4 py-2 text-[11px] font-bold uppercase tracking-wider">
                       {platform}
                     </td>
@@ -177,7 +200,24 @@ export function TopContentCard() {
                   {/* Items for this platform */}
                   {items.map((item, index) => {
                     const stCfg = STATUS_CONFIG[item.status];
-                    const isIg = item.platform.toLowerCase() === 'ig';
+                    const isIg = item.platform.toLowerCase() === 'ig' || item.platform.toLowerCase() === 'instagram';
+                    
+                    let metricValue: number | string = item.impressions;
+                    switch(sortBy) {
+                      case "likes": metricValue = item.likes; break;
+                      case "comments": metricValue = item.comments; break;
+                      case "shares": case "repost": metricValue = item.shares; break;
+                      case "saves": metricValue = item.saves; break;
+                      case "reach": metricValue = item.reach; break;
+                      case "engagementRate": metricValue = item.engagementRate; break;
+                    }
+
+                    if (typeof metricValue === "number" && sortBy !== "engagementRate") {
+                       metricValue = metricValue >= 1000 ? `${(metricValue / 1000).toFixed(1)}k` : metricValue;
+                    } else if (sortBy === "engagementRate" && typeof metricValue === "number") {
+                       metricValue = metricValue.toFixed(1) + "%";
+                    }
+
                     return (
                       <tr key={item.id} className="border-b border-border/50 last:border-0 hover:bg-muted/10 transition-colors">
                         <td className="px-4 py-4 text-center font-medium">{index + 1}</td>
@@ -196,7 +236,7 @@ export function TopContentCard() {
                           </div>
                         </td>
                         <td className="px-4 py-4 text-right tabular-nums">
-                          {item.impressions >= 1000 ? `${(item.impressions / 1000).toFixed(1)}k` : item.impressions}
+                          {metricValue}
                         </td>
                         <td className="px-4 py-4 text-right tabular-nums">
                           {item.engagementRate.toFixed(1)}%
