@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addMonths, subMonths, eachDayOfInterval, isSameMonth, isToday } from "date-fns";
-import { getCalendarEvents, type CalendarEvent, PLATFORM_CONFIG, type ContentOutlet } from "@/lib/sosmed-api";
+import { getCalendarEvents, updateContent, type CalendarEvent, PLATFORM_CONFIG, type ContentOutlet } from "@/lib/sosmed-api";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlatformIcon } from "./components/platform-icon";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -53,10 +53,41 @@ export function SosmedCalendar({ onEventClick, onDayClick }: { onEventClick?: (i
   const handleNext = () => setCurrentDate(prev => addMonths(prev, 1));
   const handleToday = () => setCurrentDate(new Date());
 
-  const handleSyncGCal = () => {
-    toast.info("🔄 Sync Google Calendar", {
-      description: "Fitur sinkronisasi Google Calendar akan tersedia di update mendatang.",
-    });
+  const handleDragStart = (e: React.DragEvent, eventId: string) => {
+    e.dataTransfer.setData("eventId", eventId);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault(); // Necessary to allow drop
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetDate: Date) => {
+    e.preventDefault();
+    const eventId = e.dataTransfer.getData("eventId");
+    if (!eventId) return;
+
+    const event = events.find(ev => ev.id === eventId);
+    if (!event) return;
+
+    // Preserve time if available, otherwise just use the new date string
+    const timePart = event.date.includes('T') ? 'T' + event.date.split('T')[1] : 'T12:00:00Z';
+    const newDateStr = format(targetDate, "yyyy-MM-dd") + timePart;
+    
+    // Update locally for immediate feedback
+    setEvents(prev => prev.map(ev => 
+      ev.id === eventId ? { ...ev, date: newDateStr } : ev
+    ));
+    
+    toast.success("Konten berhasil dipindahkan!");
+
+    // Call API (Background)
+    try {
+      await updateContent(eventId, { 
+        [dateType === "posting" ? "scheduledDate" : "createdAt"]: newDateStr 
+      });
+    } catch (err) {
+      toast.error("Gagal menyimpan perubahan ke server");
+    }
   };
 
   return (
@@ -134,6 +165,8 @@ export function SosmedCalendar({ onEventClick, onDayClick }: { onEventClick?: (i
                 <div
                   key={idx}
                   onClick={() => onDayClick?.(day)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, day)}
                   className={`border-b border-r border-border p-1.5 min-h-[100px] transition-colors cursor-pointer ${
                     !inMonth ? "bg-muted/10 opacity-40" : "hover:bg-muted/20"
                   } ${today ? "bg-primary/5 ring-1 ring-inset ring-primary/20" : ""}`}
@@ -149,19 +182,51 @@ export function SosmedCalendar({ onEventClick, onDayClick }: { onEventClick?: (i
                     {dayEvents.slice(0, 3).map(ev => {
                       const platformColor = PLATFORM_CONFIG[ev.platform].color;
                       return (
-                        <button
+                        <div
                           key={ev.id}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, ev.id)}
                           onClick={(e) => { e.stopPropagation(); onEventClick?.(ev.id); }}
-                          className="w-full text-left px-1.5 py-0.5 rounded text-[10px] font-medium truncate transition-all hover:opacity-80 hover:scale-[1.02]"
+                          className="w-full text-left px-1.5 py-0.5 rounded text-[10px] font-medium truncate transition-all hover:opacity-80 hover:scale-[1.02] cursor-move"
                           style={{ backgroundColor: `${platformColor}18`, color: platformColor, borderLeft: `2px solid ${platformColor}` }}
                           title={ev.title}
                         >
                           {ev.title}
-                        </button>
+                        </div>
                       );
                     })}
+                    
                     {dayEvents.length > 3 && (
-                      <span className="text-[10px] text-muted-foreground pl-1.5">+{dayEvents.length - 3} more</span>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-full text-left text-[10px] text-muted-foreground pl-1.5 hover:text-primary transition-colors py-0.5"
+                          >
+                            +{dayEvents.length - 3} more
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-56 p-2" align="start" onClick={(e) => e.stopPropagation()}>
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold mb-2 px-1">{format(day, "d MMMM yyyy")}</p>
+                            {dayEvents.slice(3).map(ev => {
+                              const platformColor = PLATFORM_CONFIG[ev.platform].color;
+                              return (
+                                <div
+                                  key={ev.id}
+                                  draggable
+                                  onDragStart={(e) => handleDragStart(e, ev.id)}
+                                  onClick={(e) => { e.stopPropagation(); onEventClick?.(ev.id); }}
+                                  className="w-full text-left px-2 py-1 rounded text-xs font-medium truncate cursor-move hover:opacity-80"
+                                  style={{ backgroundColor: `${platformColor}18`, color: platformColor, borderLeft: `2px solid ${platformColor}` }}
+                                >
+                                  {ev.title}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     )}
                   </div>
                 </div>
