@@ -6,7 +6,9 @@ import {
   type ContentStats,
 } from "@/lib/sosmed-api";
 import { SosmedStatCard } from "./components/stat-card";
-import { UnifiedInsightCard } from "./components/unified-insight-card";
+import { PerformaTrendCard } from "./components/performa-trend-card";
+import { MetricGridCards } from "./components/metric-grid-cards";
+import { TopContentCard } from "./components/top-content-card";
 
 export function SosmedDashboard() {
   const [stats, setStats] = useState<ContentStats | null>(null);
@@ -38,13 +40,8 @@ export function SosmedDashboard() {
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-xl border bg-card p-5 h-[300px]">
-              <Skeleton className="h-full w-full rounded-lg" />
-            </div>
-          ))}
-        </div>
+        <Skeleton className="h-[400px] w-full rounded-xl" />
+        <Skeleton className="h-[300px] w-full rounded-xl" />
       </div>
     );
   }
@@ -91,9 +88,11 @@ export function SosmedDashboard() {
         />
       </div>
 
-      {/* Metric Charts Area */}
-      <div className="grid grid-cols-1 gap-6">
-        <UnifiedInsightCard />
+      {/* Main Charts Area */}
+      <div className="flex flex-col gap-6">
+        <PerformaTrendCard />
+        <TopContentCard />
+        <MetricGridCards />
       </div>
     </div>
   );
