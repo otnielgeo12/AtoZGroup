@@ -846,6 +846,14 @@ components:
           type: ["string", "null"]
         cardImagePath:
           type: ["string", "null"]
+        pdfMenuUrl:
+          type: ["string", "null"]
+        isFoodMenuActive:
+          type: boolean
+        isBeverageMenuActive:
+          type: boolean
+        isWineMenuActive:
+          type: boolean
         sortOrder:
           type: integer
         createdAt:
@@ -878,6 +886,14 @@ components:
           type: ["string", "null"]
         cardImagePath:
           type: ["string", "null"]
+        pdfMenuUrl:
+          type: ["string", "null"]
+        isFoodMenuActive:
+          type: boolean
+        isBeverageMenuActive:
+          type: boolean
+        isWineMenuActive:
+          type: boolean
         sortOrder:
           type: integer
       required: [slug, name]
@@ -906,6 +922,14 @@ components:
           type: ["string", "null"]
         cardImagePath:
           type: ["string", "null"]
+        pdfMenuUrl:
+          type: ["string", "null"]
+        isFoodMenuActive:
+          type: boolean
+        isBeverageMenuActive:
+          type: boolean
+        isWineMenuActive:
+          type: boolean
         sortOrder:
           type: integer
 
@@ -932,11 +956,13 @@ components:
           type: integer
         featured:
           type: boolean
+        isActive:
+          type: boolean
         createdAt:
           type: string
         updatedAt:
           type: string
-      required: [id, outletId, category, name, sortOrder, featured, createdAt, updatedAt]
+      required: [id, outletId, category, name, sortOrder, featured, isActive, createdAt, updatedAt]
     CreateMenuItemBody:
       type: object
       properties:
@@ -955,6 +981,8 @@ components:
         sortOrder:
           type: integer
         featured:
+          type: boolean
+        isActive:
           type: boolean
       required: [category, name]
     UpdateMenuItemBody:
@@ -975,6 +1003,8 @@ components:
         sortOrder:
           type: integer
         featured:
+          type: boolean
+        isActive:
           type: boolean
 
     Promotion:
@@ -1159,11 +1189,13 @@ components:
           type: integer
         featured:
           type: boolean
+        isActive:
+          type: boolean
         createdAt:
           type: string
         updatedAt:
           type: string
-      required: [id, outletId, category, name, sortOrder, featured, createdAt, updatedAt]
+      required: [id, outletId, category, name, sortOrder, featured, isActive, createdAt, updatedAt]
     CreateBeverageBody:
       type: object
       properties:
@@ -1178,6 +1210,8 @@ components:
         sortOrder:
           type: integer
         featured:
+          type: boolean
+        isActive:
           type: boolean
       required: [category, name]
     UpdateBeverageBody:
@@ -1194,6 +1228,8 @@ components:
         sortOrder:
           type: integer
         featured:
+          type: boolean
+        isActive:
           type: boolean
 
     Wine:
@@ -1215,11 +1251,13 @@ components:
           type: integer
         featured:
           type: boolean
+        isActive:
+          type: boolean
         createdAt:
           type: string
         updatedAt:
           type: string
-      required: [id, outletId, category, name, sortOrder, featured, createdAt, updatedAt]
+      required: [id, outletId, category, name, sortOrder, featured, isActive, createdAt, updatedAt]
     CreateWineBody:
       type: object
       properties:
@@ -1234,6 +1272,8 @@ components:
         sortOrder:
           type: integer
         featured:
+          type: boolean
+        isActive:
           type: boolean
       required: [category, name]
     UpdateWineBody:
@@ -1250,4 +1290,6 @@ components:
         sortOrder:
           type: integer
         featured:
+          type: boolean
+        isActive:
           type: boolean

@@ -28,6 +28,11 @@ export interface Outlet {
   coverImagePath?: string | null;
   /** @nullable */
   cardImagePath?: string | null;
+  /** @nullable */
+  pdfMenuUrl?: string | null;
+  isFoodMenuActive?: boolean;
+  isBeverageMenuActive?: boolean;
+  isWineMenuActive?: boolean;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;

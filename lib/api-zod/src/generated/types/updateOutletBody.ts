@@ -27,5 +27,10 @@ export interface UpdateOutletBody {
   coverImagePath?: string | null;
   /** @nullable */
   cardImagePath?: string | null;
+  /** @nullable */
+  pdfMenuUrl?: string | null;
+  isFoodMenuActive?: boolean;
+  isBeverageMenuActive?: boolean;
+  isWineMenuActive?: boolean;
   sortOrder?: number;
 }

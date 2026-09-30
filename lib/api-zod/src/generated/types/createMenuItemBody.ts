@@ -19,4 +19,5 @@ export interface CreateMenuItemBody {
   tags?: string | null;
   sortOrder?: number;
   featured?: boolean;
+  isActive?: boolean;
 }

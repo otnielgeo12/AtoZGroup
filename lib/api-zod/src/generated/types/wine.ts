@@ -17,6 +17,7 @@ export interface Wine {
   price?: string | null;
   sortOrder: number;
   featured: boolean;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }

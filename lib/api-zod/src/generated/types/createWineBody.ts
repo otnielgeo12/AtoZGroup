@@ -15,4 +15,5 @@ export interface CreateWineBody {
   price?: string | null;
   sortOrder?: number;
   featured?: boolean;
+  isActive?: boolean;
 }

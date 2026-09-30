@@ -70,6 +70,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { ImageUpload } from "@/components/image-upload";
+import { PdfUpload } from "@/components/pdf-upload";
 import { Badge } from "@/components/ui/badge";
 
 const outletSchema = z.object({
@@ -84,6 +85,7 @@ const outletSchema = z.object({
   accentColor: z.string().nullable().optional(),
   coverImagePath: z.string().nullable().optional(),
   cardImagePath: z.string().nullable().optional(),
+  pdfMenuUrl: z.string().nullable().optional(),
   sortOrder: z.coerce.number().int().default(0),
 });
 
@@ -98,6 +100,7 @@ const menuItemSchema = z.object({
   tags: z.string().nullable().optional(),
   sortOrder: z.coerce.number().int().default(0),
   featured: z.boolean().default(false),
+  isActive: z.boolean().default(true),
 });
 
 type MenuItemFormValues = z.infer<typeof menuItemSchema>;
@@ -109,6 +112,7 @@ const wineSchema = z.object({
   price: z.string().nullable().optional(),
   sortOrder: z.coerce.number().int().default(0),
   featured: z.boolean().default(false),
+  isActive: z.boolean().default(true),
 });
 
 type WineFormValues = z.infer<typeof wineSchema>;
@@ -120,6 +124,7 @@ const beverageSchema = z.object({
   price: z.string().nullable().optional(),
   sortOrder: z.coerce.number().int().default(0),
   featured: z.boolean().default(false),
+  isActive: z.boolean().default(true),
 });
 
 type BeverageFormValues = z.infer<typeof beverageSchema>;
@@ -203,6 +208,7 @@ export default function OutletDetailPage() {
       accentColor: "",
       coverImagePath: "",
       cardImagePath: "",
+      pdfMenuUrl: "",
       sortOrder: 0,
     }
   });
@@ -222,6 +228,7 @@ export default function OutletDetailPage() {
         accentColor: outlet.accentColor || "",
         coverImagePath: outlet.coverImagePath || "",
         cardImagePath: outlet.cardImagePath || "",
+        pdfMenuUrl: (outlet as any).pdfMenuUrl || "",
         sortOrder: outlet.sortOrder,
       });
     }
@@ -286,6 +293,7 @@ export default function OutletDetailPage() {
       tags: "",
       sortOrder: 0,
       featured: false,
+      isActive: true,
     }
   });
 
@@ -301,6 +309,7 @@ export default function OutletDetailPage() {
         tags: "",
         sortOrder: (menuItems?.length || 0) * 10,
         featured: false,
+        isActive: true,
       });
     }
   };
@@ -317,6 +326,7 @@ export default function OutletDetailPage() {
         tags: item.tags || "",
         sortOrder: item.sortOrder,
         featured: item.featured,
+        isActive: item.isActive ?? true,
       });
     } else {
       setEditingMenu(null);
@@ -378,20 +388,20 @@ export default function OutletDetailPage() {
 
   const bevForm = useForm<BeverageFormValues>({
     resolver: zodResolver(beverageSchema),
-    defaultValues: { category: "", name: "", description: "", price: "", sortOrder: 0, featured: false }
+    defaultValues: { category: "", name: "", description: "", price: "", sortOrder: 0, featured: false, isActive: true }
   });
 
   const onOpenChangeCreateBev = (open: boolean) => {
     setIsCreateBevOpen(open);
     if (open) {
-      bevForm.reset({ category: "", name: "", description: "", price: "", sortOrder: (beverages?.length || 0) * 10, featured: false });
+      bevForm.reset({ category: "", name: "", description: "", price: "", sortOrder: (beverages?.length || 0) * 10, featured: false, isActive: true });
     }
   };
 
   const onOpenChangeEditBev = (open: boolean, item?: any) => {
     if (open && item) {
       setEditingBev(item);
-      bevForm.reset({ category: item.category, name: item.name, description: item.description || "", price: item.price || "", sortOrder: item.sortOrder, featured: item.featured });
+      bevForm.reset({ category: item.category, name: item.name, description: item.description || "", price: item.price || "", sortOrder: item.sortOrder, featured: item.featured, isActive: item.isActive ?? true });
     } else {
       setEditingBev(null);
     }
@@ -460,20 +470,20 @@ export default function OutletDetailPage() {
 
   const wineForm = useForm<WineFormValues>({
     resolver: zodResolver(wineSchema),
-    defaultValues: { category: "", name: "", description: "", price: "", sortOrder: 0, featured: false }
+    defaultValues: { category: "", name: "", description: "", price: "", sortOrder: 0, featured: false, isActive: true }
   });
 
   const onOpenChangeCreateWine = (open: boolean) => {
     setIsCreateWineOpen(open);
     if (open) {
-      wineForm.reset({ category: "", name: "", description: "", price: "", sortOrder: (wines?.length || 0) * 10, featured: false });
+      wineForm.reset({ category: "", name: "", description: "", price: "", sortOrder: (wines?.length || 0) * 10, featured: false, isActive: true });
     }
   };
 
   const onOpenChangeEditWine = (open: boolean, item?: any) => {
     if (open && item) {
       setEditingWine(item);
-      wineForm.reset({ category: item.category, name: item.name, description: item.description || "", price: item.price || "", sortOrder: item.sortOrder, featured: item.featured });
+      wineForm.reset({ category: item.category, name: item.name, description: item.description || "", price: item.price || "", sortOrder: item.sortOrder, featured: item.featured, isActive: item.isActive ?? true });
     } else {
       setEditingWine(null);
     }
@@ -874,6 +884,38 @@ const promotionsQueryKey = getListPromotionsQueryKey(id);
               <p className="text-sm text-muted-foreground">Manage the specific menu for this outlet.</p>
             </div>
             
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 pr-4 border-r border-border">
+                <Switch 
+                  checked={outlet?.isFoodMenuActive ?? true}
+                  onCheckedChange={(checked) => {
+                    if (!outlet) return;
+                    updateOutletMutation.mutate({
+                      id: outlet.id,
+                      data: { isFoodMenuActive: checked }
+                    });
+                  }}
+                />
+                <Label className="text-sm font-medium">Show Full Menu on Landing</Label>
+              </div>
+
+              <div className="flex items-center gap-4 pr-4 border-r border-border">
+                <div className="flex flex-col gap-1">
+                  <Label className="text-sm font-medium">PDF Menu</Label>
+                  <span className="text-[10px] text-muted-foreground">Overrides default menu view</span>
+                </div>
+                <PdfUpload 
+                  value={outlet?.pdfMenuUrl || ""} 
+                  onChange={(url) => {
+                    if (!outlet) return;
+                    updateOutletMutation.mutate({
+                      id: outlet.id,
+                      data: { pdfMenuUrl: url }
+                    });
+                  }}
+                  className="max-w-[200px]"
+                />
+              </div>
             <Dialog open={isCreateMenuOpen} onOpenChange={onOpenChangeCreateMenu}>
               <DialogTrigger asChild>
                 <Button data-testid="button-create-menu-item">
@@ -896,6 +938,7 @@ const promotionsQueryKey = getListPromotionsQueryKey(id);
                 />
               </DialogContent>
             </Dialog>
+            </div>
           </div>
 
           <Dialog open={!!editingMenu} onOpenChange={(open) => onOpenChangeEditMenu(open, editingMenu)}>
@@ -1031,6 +1074,20 @@ const promotionsQueryKey = getListPromotionsQueryKey(id);
               <h2 className="text-xl font-semibold">Beverages</h2>
               <p className="text-sm text-muted-foreground">Manage the beverage menu for this outlet.</p>
             </div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 pr-4 border-r border-border">
+                <Switch 
+                  checked={outlet?.isBeverageMenuActive ?? true}
+                  onCheckedChange={(checked) => {
+                    if (!outlet) return;
+                    updateOutletMutation.mutate({
+                      id: outlet.id,
+                      data: { isBeverageMenuActive: checked }
+                    });
+                  }}
+                />
+                <Label className="text-sm font-medium">Show Beverages on Landing</Label>
+              </div>
             <Dialog open={isCreateBevOpen} onOpenChange={onOpenChangeCreateBev}>
               <DialogTrigger asChild>
                 <Button data-testid="button-create-beverage">
@@ -1046,6 +1103,7 @@ const promotionsQueryKey = getListPromotionsQueryKey(id);
                 <BeverageForm form={bevForm} onSubmit={onBevSubmit} isPending={createBevMutation.isPending} onCancel={() => setIsCreateBevOpen(false)} />
               </DialogContent>
             </Dialog>
+            </div>
           </div>
 
           <Dialog open={!!editingBev} onOpenChange={(open) => onOpenChangeEditBev(open, editingBev)}>
@@ -1153,6 +1211,20 @@ const promotionsQueryKey = getListPromotionsQueryKey(id);
               <p className="text-sm text-muted-foreground">Manage the wine list for this outlet.</p>
             </div>
             
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 pr-4 border-r border-border">
+                <Switch 
+                  checked={outlet?.isWineMenuActive ?? true}
+                  onCheckedChange={(checked) => {
+                    if (!outlet) return;
+                    updateOutletMutation.mutate({
+                      id: outlet.id,
+                      data: { isWineMenuActive: checked }
+                    });
+                  }}
+                />
+                <Label className="text-sm font-medium">Show Wines on Landing</Label>
+              </div>
             <Dialog open={isCreateWineOpen} onOpenChange={onOpenChangeCreateWine}>
               <DialogTrigger asChild>
                 <Button data-testid="button-create-wine">
@@ -1175,6 +1247,7 @@ const promotionsQueryKey = getListPromotionsQueryKey(id);
                 />
               </DialogContent>
             </Dialog>
+            </div>
           </div>
 
           {isWinesLoading ? (
@@ -1715,6 +1788,20 @@ function BeverageForm({
             </FormItem>
           )}
         />
+        <FormField
+          control={form.control}
+          name="isActive"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+              <div className="space-y-0.5">
+                <FormLabel>Active (Show on Landing)</FormLabel>
+              </div>
+              <FormControl>
+                <Switch checked={field.value} onCheckedChange={field.onChange} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>Cancel</Button>
           <Button type="submit" disabled={isPending} data-testid="button-save-beverage">
@@ -1858,6 +1945,24 @@ function MenuForm({
               </FormItem>
             )}
           />
+
+          <FormField
+            control={form.control}
+            name="isActive"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm h-10 mt-auto">
+                <div className="space-y-0.5">
+                  <FormLabel>Active</FormLabel>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
         </div>
 
         <DialogFooter>
@@ -1962,6 +2067,20 @@ function WineForm({
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
               <div className="space-y-0.5">
                 <FormLabel>Featured Wine</FormLabel>
+              </div>
+              <FormControl>
+                <Switch checked={field.value} onCheckedChange={field.onChange} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="isActive"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+              <div className="space-y-0.5">
+                <FormLabel>Active (Show on Landing)</FormLabel>
               </div>
               <FormControl>
                 <Switch checked={field.value} onCheckedChange={field.onChange} />

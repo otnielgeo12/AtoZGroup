@@ -134,6 +134,10 @@ export const ListOutletsResponseItem = zod.object({
   "accentColor": zod.string().nullish(),
   "coverImagePath": zod.string().nullish(),
   "cardImagePath": zod.string().nullish(),
+  "pdfMenuUrl": zod.string().nullish(),
+  "isFoodMenuActive": zod.boolean().optional(),
+  "isBeverageMenuActive": zod.boolean().optional(),
+  "isWineMenuActive": zod.boolean().optional(),
   "sortOrder": zod.number(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
@@ -153,6 +157,10 @@ export const CreateOutletBody = zod.object({
   "accentColor": zod.string().nullish(),
   "coverImagePath": zod.string().nullish(),
   "cardImagePath": zod.string().nullish(),
+  "pdfMenuUrl": zod.string().nullish(),
+  "isFoodMenuActive": zod.boolean().optional(),
+  "isBeverageMenuActive": zod.boolean().optional(),
+  "isWineMenuActive": zod.boolean().optional(),
   "sortOrder": zod.number().optional()
 })
 
@@ -174,6 +182,10 @@ export const GetOutletResponse = zod.object({
   "accentColor": zod.string().nullish(),
   "coverImagePath": zod.string().nullish(),
   "cardImagePath": zod.string().nullish(),
+  "pdfMenuUrl": zod.string().nullish(),
+  "isFoodMenuActive": zod.boolean().optional(),
+  "isBeverageMenuActive": zod.boolean().optional(),
+  "isWineMenuActive": zod.boolean().optional(),
   "sortOrder": zod.number(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
@@ -196,6 +208,10 @@ export const UpdateOutletBody = zod.object({
   "accentColor": zod.string().nullish(),
   "coverImagePath": zod.string().nullish(),
   "cardImagePath": zod.string().nullish(),
+  "pdfMenuUrl": zod.string().nullish(),
+  "isFoodMenuActive": zod.boolean().optional(),
+  "isBeverageMenuActive": zod.boolean().optional(),
+  "isWineMenuActive": zod.boolean().optional(),
   "sortOrder": zod.number().optional()
 })
 
@@ -212,6 +228,10 @@ export const UpdateOutletResponse = zod.object({
   "accentColor": zod.string().nullish(),
   "coverImagePath": zod.string().nullish(),
   "cardImagePath": zod.string().nullish(),
+  "pdfMenuUrl": zod.string().nullish(),
+  "isFoodMenuActive": zod.boolean().optional(),
+  "isBeverageMenuActive": zod.boolean().optional(),
+  "isWineMenuActive": zod.boolean().optional(),
   "sortOrder": zod.number(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
@@ -240,6 +260,10 @@ export const GetOutletBySlugResponse = zod.object({
   "accentColor": zod.string().nullish(),
   "coverImagePath": zod.string().nullish(),
   "cardImagePath": zod.string().nullish(),
+  "pdfMenuUrl": zod.string().nullish(),
+  "isFoodMenuActive": zod.boolean().optional(),
+  "isBeverageMenuActive": zod.boolean().optional(),
+  "isWineMenuActive": zod.boolean().optional(),
   "sortOrder": zod.number(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
@@ -261,6 +285,7 @@ export const ListMenuItemsResponseItem = zod.object({
   "tags": zod.string().nullish(),
   "sortOrder": zod.number(),
   "featured": zod.boolean(),
+  "isActive": zod.boolean(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -279,7 +304,8 @@ export const CreateMenuItemBody = zod.object({
   "imagePath": zod.string().nullish(),
   "tags": zod.string().nullish(),
   "sortOrder": zod.number().optional(),
-  "featured": zod.boolean().optional()
+  "featured": zod.boolean().optional(),
+  "isActive": zod.boolean().optional()
 })
 
 
@@ -298,6 +324,7 @@ export const GetMenuItemResponse = zod.object({
   "tags": zod.string().nullish(),
   "sortOrder": zod.number(),
   "featured": zod.boolean(),
+  "isActive": zod.boolean(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -315,7 +342,8 @@ export const UpdateMenuItemBody = zod.object({
   "imagePath": zod.string().nullish(),
   "tags": zod.string().nullish(),
   "sortOrder": zod.number().optional(),
-  "featured": zod.boolean().optional()
+  "featured": zod.boolean().optional(),
+  "isActive": zod.boolean().optional()
 })
 
 export const UpdateMenuItemResponse = zod.object({
@@ -329,6 +357,7 @@ export const UpdateMenuItemResponse = zod.object({
   "tags": zod.string().nullish(),
   "sortOrder": zod.number(),
   "featured": zod.boolean(),
+  "isActive": zod.boolean(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -539,6 +568,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "tags": zod.string().nullish(),
   "sortOrder": zod.number(),
   "featured": zod.boolean(),
+  "isActive": zod.boolean(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 }))
@@ -558,6 +588,7 @@ export const ListBeveragesResponseItem = zod.object({
   "price": zod.string().nullish(),
   "sortOrder": zod.number(),
   "featured": zod.boolean(),
+  "isActive": zod.boolean(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -574,7 +605,8 @@ export const CreateBeverageBody = zod.object({
   "description": zod.string().nullish(),
   "price": zod.string().nullish(),
   "sortOrder": zod.number().optional(),
-  "featured": zod.boolean().optional()
+  "featured": zod.boolean().optional(),
+  "isActive": zod.boolean().optional()
 })
 
 
@@ -591,6 +623,7 @@ export const GetBeverageResponse = zod.object({
   "price": zod.string().nullish(),
   "sortOrder": zod.number(),
   "featured": zod.boolean(),
+  "isActive": zod.boolean(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -606,7 +639,8 @@ export const UpdateBeverageBody = zod.object({
   "description": zod.string().nullish(),
   "price": zod.string().nullish(),
   "sortOrder": zod.number().optional(),
-  "featured": zod.boolean().optional()
+  "featured": zod.boolean().optional(),
+  "isActive": zod.boolean().optional()
 })
 
 export const UpdateBeverageResponse = zod.object({
@@ -618,6 +652,7 @@ export const UpdateBeverageResponse = zod.object({
   "price": zod.string().nullish(),
   "sortOrder": zod.number(),
   "featured": zod.boolean(),
+  "isActive": zod.boolean(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -641,6 +676,7 @@ export const ListWinesResponseItem = zod.object({
   "price": zod.string().nullish(),
   "sortOrder": zod.number(),
   "featured": zod.boolean(),
+  "isActive": zod.boolean(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -657,7 +693,8 @@ export const CreateWineBody = zod.object({
   "description": zod.string().nullish(),
   "price": zod.string().nullish(),
   "sortOrder": zod.number().optional(),
-  "featured": zod.boolean().optional()
+  "featured": zod.boolean().optional(),
+  "isActive": zod.boolean().optional()
 })
 
 
@@ -674,6 +711,7 @@ export const GetWineResponse = zod.object({
   "price": zod.string().nullish(),
   "sortOrder": zod.number(),
   "featured": zod.boolean(),
+  "isActive": zod.boolean(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -689,7 +727,8 @@ export const UpdateWineBody = zod.object({
   "description": zod.string().nullish(),
   "price": zod.string().nullish(),
   "sortOrder": zod.number().optional(),
-  "featured": zod.boolean().optional()
+  "featured": zod.boolean().optional(),
+  "isActive": zod.boolean().optional()
 })
 
 export const UpdateWineResponse = zod.object({
@@ -701,6 +740,7 @@ export const UpdateWineResponse = zod.object({
   "price": zod.string().nullish(),
   "sortOrder": zod.number(),
   "featured": zod.boolean(),
+  "isActive": zod.boolean(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })

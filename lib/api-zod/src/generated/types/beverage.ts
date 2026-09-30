@@ -17,6 +17,7 @@ export interface Beverage {
   price?: string | null;
   sortOrder: number;
   featured: boolean;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }

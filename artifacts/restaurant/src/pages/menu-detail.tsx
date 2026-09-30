@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, Link } from "wouter";
 import { motion } from "framer-motion";
-import { ArrowLeft, Clock, MapPin, Utensils, GlassWater } from "lucide-react";
+import { ArrowLeft, Clock, MapPin, Utensils, GlassWater, FileText } from "lucide-react";
 import {
   useGetOutletBySlug,
   getGetOutletBySlugQueryKey,
@@ -77,8 +77,9 @@ export function MenuDetail() {
     query: { enabled: !!outlet?.id, queryKey: getListWinesQueryKey(outlet?.id || -1) },
   });
 
-  const wineCategories = wines
-    ? Array.from(new Set(wines.map((w) => w.category)))
+  const activeWines = wines?.filter((w: any) => w.isActive !== false) || [];
+  const wineCategories = activeWines
+    ? Array.from(new Set(activeWines.map((w: any) => w.category)))
     : [];
 
 if (outletLoading) {
@@ -108,12 +109,14 @@ if (outletLoading) {
     );
   }
 
-  const foodCategories = menuItems
-    ? Array.from(new Set(menuItems.map((i) => i.category)))
+  const activeMenuItems = menuItems?.filter((i: any) => i.isActive !== false) || [];
+  const foodCategories = activeMenuItems
+    ? Array.from(new Set(activeMenuItems.map((i: any) => i.category)))
     : [];
 
-  const bevCategories = beverages
-    ? Array.from(new Set(beverages.map((b) => b.category)))
+  const activeBeverages = beverages?.filter((b: any) => b.isActive !== false) || [];
+  const bevCategories = activeBeverages
+    ? Array.from(new Set(activeBeverages.map((b: any) => b.category)))
     : [];
 
   return (
@@ -172,10 +175,43 @@ if (outletLoading) {
         </div>
       </section>
 
-      {/* Food / Beverages Toggle */}
-      <section className="sticky top-[64px] z-20 bg-zinc-950/95 backdrop-blur-sm border-b border-white/10">
+      {/* PDF MENU OVERRIDE */}
+      {(outlet as any).pdfMenuUrl ? (
+        <section className="py-20 px-6">
+          <div className="container mx-auto max-w-5xl">
+            <div className="mb-12 text-center">
+              <h2 className="text-3xl md:text-4xl font-serif text-primary mb-4">Our Menu</h2>
+              <p className="text-white/60">Explore our delicious offerings below.</p>
+            </div>
+            <div className="w-full aspect-[1/1.4] md:aspect-[1/1.2] lg:aspect-video rounded-xl overflow-hidden border border-white/10 shadow-2xl bg-zinc-900 flex flex-col">
+              <object
+                data={(outlet as any).pdfMenuUrl}
+                type="application/pdf"
+                className="w-full h-full"
+              >
+                <div className="flex flex-col items-center justify-center h-full p-8 text-center space-y-4">
+                  <FileText className="w-16 h-16 text-primary/40" />
+                  <p className="text-white/70">It appears your browser doesn't support embedded PDFs.</p>
+                  <a 
+                    href={(outlet as any).pdfMenuUrl} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium tracking-wide"
+                  >
+                    Download PDF Menu
+                  </a>
+                </div>
+              </object>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <>
+          {/* Food / Beverages Toggle */}
+          <section className="sticky top-[64px] z-20 bg-zinc-950/95 backdrop-blur-sm border-b border-white/10">
         <div className="container mx-auto px-6">
           <div className="flex items-center gap-1 py-4">
+            {outlet?.isFoodMenuActive !== false && (
             <button
               id="tab-food"
               onClick={() => setActiveTab("food")}
@@ -189,6 +225,8 @@ if (outletLoading) {
               <Utensils size={13} />
               Food Menu
             </button>
+            )}
+            {outlet?.isBeverageMenuActive !== false && (
             <button
               id="tab-beverages"
               onClick={() => setActiveTab("beverages")}
@@ -202,7 +240,9 @@ if (outletLoading) {
               <GlassWater size={13} />
               Beverages
             </button>
+            )}
 
+            {outlet?.isWineMenuActive !== false && (
             <button
               id="tab-wines"
               onClick={() => setActiveTab("wines")}
@@ -216,6 +256,7 @@ if (outletLoading) {
               <GlassWater size={13} />
               Wine
             </button>
+            )}
           </div>
         </div>
       </section>
@@ -225,17 +266,35 @@ if (outletLoading) {
         <div className="container mx-auto max-w-5xl">
 
           {/* ── FOOD TAB ── */}
-          {activeTab === "food" && (
+          {activeTab === "food" && outlet?.isFoodMenuActive !== false && (
             <>
-              {menuLoading ? (
-                <div className="space-y-8">
+              {outlet?.pdfMenuUrl ? (
+                <div className="w-full h-[80vh] mt-8 border border-zinc-800 rounded-xl overflow-hidden bg-zinc-900 flex items-center justify-center">
+                  <object
+                    data={getImageUrl(outlet.pdfMenuUrl)}
+                    type="application/pdf"
+                    className="w-full h-full"
+                  >
+                    <div className="p-8 text-center">
+                      <p className="text-zinc-400 mb-4">Unable to display PDF file.</p>
+                      <a href={getImageUrl(outlet.pdfMenuUrl)} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                        Download Menu PDF
+                      </a>
+                    </div>
+                  </object>
+                </div>
+              ) : menuLoading ? (
+                <div className="space-y-8 mt-8">
                   {[1, 2, 3].map((i) => (
                     <Skeleton key={i} className="h-24 w-full bg-zinc-900" />
                   ))}
                 </div>
-              ) : menuItems && menuItems.length > 0 ? (
+              ) : activeMenuItems && activeMenuItems.length > 0 && activeMenuItems.some(i => foodCategories.includes(i.category)) ? (
                 <div className="space-y-20">
-                  {foodCategories.map((category) => (
+                  {foodCategories.map((category) => {
+                    const categoryItems = activeMenuItems.filter((i) => i.category === category);
+                    if (categoryItems.length === 0) return null;
+                    return (
                     <div key={category}>
                       <div className="mb-8">
                         <h2 className="text-3xl md:text-4xl font-serif text-primary mb-2">
@@ -248,7 +307,7 @@ if (outletLoading) {
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
-                        {menuItems
+                        {activeMenuItems
                           .filter((i) => i.category === category)
                           .map((item: any) => (
                             <div key={item.id} className="flex gap-4 items-start">
@@ -292,7 +351,8 @@ if (outletLoading) {
                           ))}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-20 border border-white/10 rounded-sm">
@@ -305,7 +365,7 @@ if (outletLoading) {
           )}
 
           {/* ── BEVERAGES TAB ── */}
-          {activeTab === "beverages" && (
+          {activeTab === "beverages" && outlet?.isBeverageMenuActive !== false && (
             <>
               {bevLoading ? (
                 <div className="space-y-8">
@@ -313,7 +373,7 @@ if (outletLoading) {
                     <Skeleton key={i} className="h-20 w-full bg-zinc-900" />
                   ))}
                 </div>
-              ) : beverages && beverages.length > 0 ? (
+              ) : activeBeverages && activeBeverages.length > 0 ? (
                 <div className="space-y-20">
                   {bevCategories.map((category) => (
                     <div key={category}>
@@ -328,7 +388,7 @@ if (outletLoading) {
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-                        {beverages
+                        {activeBeverages
                           .filter((b) => b.category === category)
                           .map((bev: any) => (
                             <div key={bev.id} className="flex items-start gap-4">
@@ -373,7 +433,7 @@ if (outletLoading) {
           )}
 
           {/* ── WINES TAB ── */}
-          {activeTab === "wines" && (
+          {activeTab === "wines" && outlet?.isWineMenuActive !== false && (
             <>
               {wineLoading ? (
                 <div className="space-y-8">
@@ -381,7 +441,7 @@ if (outletLoading) {
                     <Skeleton key={i} className="h-20 w-full bg-zinc-900" />
                   ))}
                 </div>
-              ) : wines && wines.length > 0 ? (
+              ) : activeWines && activeWines.length > 0 ? (
                 <div className="space-y-20">
                   {wineCategories.map((category) => (
                     <div key={category}>
@@ -396,7 +456,7 @@ if (outletLoading) {
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-                        {wines
+                        {activeWines
                           .filter((w) => w.category === category)
                           .map((wine: any) => (
                             <div key={wine.id} className="flex items-start gap-4">
@@ -439,9 +499,10 @@ if (outletLoading) {
               )}
             </>
           )}
-
         </div>
       </section>
+        </>
+      )}
     </div>
   );
 }

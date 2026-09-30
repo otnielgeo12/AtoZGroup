@@ -15,4 +15,5 @@ export interface UpdateBeverageBody {
   price?: string | null;
   sortOrder?: number;
   featured?: boolean;
+  isActive?: boolean;
 }

@@ -19,4 +19,5 @@ export interface UpdateMenuItemBody {
   tags?: string | null;
   sortOrder?: number;
   featured?: boolean;
+  isActive?: boolean;
 }

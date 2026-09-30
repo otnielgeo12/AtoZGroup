@@ -87,6 +87,11 @@ export interface Outlet {
   coverImagePath?: string | null;
   /** @nullable */
   cardImagePath?: string | null;
+  /** @nullable */
+  pdfMenuUrl?: string | null;
+  isFoodMenuActive?: boolean;
+  isBeverageMenuActive?: boolean;
+  isWineMenuActive?: boolean;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
@@ -113,6 +118,11 @@ export interface CreateOutletBody {
   coverImagePath?: string | null;
   /** @nullable */
   cardImagePath?: string | null;
+  /** @nullable */
+  pdfMenuUrl?: string | null;
+  isFoodMenuActive?: boolean;
+  isBeverageMenuActive?: boolean;
+  isWineMenuActive?: boolean;
   sortOrder?: number;
 }
 
@@ -137,6 +147,11 @@ export interface UpdateOutletBody {
   coverImagePath?: string | null;
   /** @nullable */
   cardImagePath?: string | null;
+  /** @nullable */
+  pdfMenuUrl?: string | null;
+  isFoodMenuActive?: boolean;
+  isBeverageMenuActive?: boolean;
+  isWineMenuActive?: boolean;
   sortOrder?: number;
 }
 
@@ -155,6 +170,7 @@ export interface MenuItem {
   tags?: string | null;
   sortOrder: number;
   featured: boolean;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -172,6 +188,7 @@ export interface CreateMenuItemBody {
   tags?: string | null;
   sortOrder?: number;
   featured?: boolean;
+  isActive?: boolean;
 }
 
 export interface UpdateMenuItemBody {
@@ -187,6 +204,7 @@ export interface UpdateMenuItemBody {
   tags?: string | null;
   sortOrder?: number;
   featured?: boolean;
+  isActive?: boolean;
 }
 
 export interface Promotion {
@@ -320,6 +338,7 @@ export interface Beverage {
   price?: string | null;
   sortOrder: number;
   featured: boolean;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -333,6 +352,7 @@ export interface CreateBeverageBody {
   price?: string | null;
   sortOrder?: number;
   featured?: boolean;
+  isActive?: boolean;
 }
 
 export interface UpdateBeverageBody {
@@ -344,6 +364,7 @@ export interface UpdateBeverageBody {
   price?: string | null;
   sortOrder?: number;
   featured?: boolean;
+  isActive?: boolean;
 }
 
 export interface Wine {
@@ -357,6 +378,7 @@ export interface Wine {
   price?: string | null;
   sortOrder: number;
   featured: boolean;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -370,6 +392,7 @@ export interface CreateWineBody {
   price?: string | null;
   sortOrder?: number;
   featured?: boolean;
+  isActive?: boolean;
 }
 
 export interface UpdateWineBody {
@@ -381,6 +404,7 @@ export interface UpdateWineBody {
   price?: string | null;
   sortOrder?: number;
   featured?: boolean;
+  isActive?: boolean;
 }
 
 export type ListBannersParams = {
