@@ -25,6 +25,9 @@ import {
   type CustomerListItem,
   type SendWhatsAppResult,
 } from "@/lib/crm-api";
+import {
+  BosaTemplatePicker, getBosaTemplate, getBosaBlockReason, type BosaTemplateKey,
+} from "./BosaTemplatePicker";
 
 // ─── Types & Config ───────────────────────────────────────────────────────────
 
@@ -70,6 +73,7 @@ export function WhatsAppModal({
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [sendingBrand, setSendingBrand] = useState<BrandKey | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [bosaTemplateKey, setBosaTemplateKey] = useState<BosaTemplateKey>("promo_temp_bosa");
 
   // ─── Send result state ─────────────────────────────────────────────
   const [sendResult, setSendResult] = useState<SendWhatsAppResult | null>(null);
@@ -114,6 +118,7 @@ export function WhatsAppModal({
         message,
         imageFile: imageFile ?? undefined,
         imageUrl: imagePreview ?? undefined,
+        templateName: brand === "Bosa" ? bosaTemplateKey : undefined,
       };
 
       let res: SendWhatsAppResult;
@@ -153,6 +158,17 @@ export function WhatsAppModal({
   const recipientCount = selectedCustomers.length;
   const isSending = sendingBrand !== null;
   const hasSendResult = sendResult !== null;
+
+  // ─── Bosa template (khusus Send for Bosa) ────────────────────────────────
+  const bosaTemplate = getBosaTemplate(bosaTemplateKey);
+  const showBosaTemplates = forceBrand
+    ? forceBrand === "Bosa"
+    : showFnb && fnbBrands.some((b) => b.key === "Bosa");
+  const isBrandDisabled = (brand: BrandKey) => {
+    if (recipientCount === 0 || isSending) return true;
+    if (brand === "Bosa") return getBosaBlockReason(bosaTemplate, message, !!imageFile) !== null;
+    return !message.trim();
+  };
 
   return (
     <Dialog open={open} onOpenChange={isSending ? undefined : onOpenChange}>
@@ -348,6 +364,18 @@ export function WhatsAppModal({
                   </span>
                 </div>
 
+                {/* ── Bosa Meta templates (hanya untuk Send for Bosa) ── */}
+                {showBosaTemplates && (
+                  <BosaTemplatePicker
+                    value={bosaTemplateKey}
+                    onChange={setBosaTemplateKey}
+                    message={message}
+                    imagePreview={imagePreview}
+                    sampleName={selectedCustomers[0]?.fullName || "Pelanggan"}
+                    disabled={isSending}
+                  />
+                )}
+
                 {/* F&B Group */}
                 {/* ── Brand Selection ── */}
                 {forceBrand ? (
@@ -355,7 +383,7 @@ export function WhatsAppModal({
                     <Button
                       type="button"
                       className="w-full h-11 font-medium bg-green-600 hover:bg-green-700 text-white"
-                      disabled={!message.trim() || recipientCount === 0 || isSending}
+                      disabled={isBrandDisabled(forceBrand)}
                       onClick={() => handleSendBrand(forceBrand)}
                     >
                       {sendingBrand === forceBrand ? (
@@ -381,9 +409,10 @@ export function WhatsAppModal({
                               key={b.key}
                               type="button"
                               className={`shadow-sm h-11 font-medium transition-all duration-200 hover:shadow hover:scale-[1.01] active:scale-[0.99] border ${b.className}`}
-                              disabled={!message.trim() || recipientCount === 0 || isSending}
+                              disabled={isBrandDisabled(b.key)}
                               onClick={() => handleSendBrand(b.key)}
                               data-testid={`wa-send-${b.key.toLowerCase()}`}
+                              title={b.key === "Bosa" ? `Template: ${bosaTemplate.label} (${bosaTemplate.key})` : undefined}
                             >
                               {sendingBrand === b.key ? (
                                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sending {b.key}…</>

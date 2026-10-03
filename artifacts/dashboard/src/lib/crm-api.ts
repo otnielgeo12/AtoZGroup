@@ -917,6 +917,8 @@ export interface SendWhatsAppParams {
   message: string;
   imageFile?: File;
   imageUrl?: string;
+  /** Hanya dipakai oleh sendWhatsAppBosa (promo_temp_bosa | hbd_template | spc) */
+  templateName?: string;
 }
 
 export interface SendWhatsAppResult {
@@ -1121,6 +1123,7 @@ export async function sendWhatsAppBosa(params: SendWhatsAppParams): Promise<Send
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         outlet:     "bosa",
+        templateName: params.templateName,
         recipients,
         message:    params.message,
         imageBase64,
